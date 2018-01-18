@@ -267,10 +267,8 @@ namespace PouetRobot
                 else if(DoICare(production))
                 {
                     GetDownloadLink(production);
-                    //production.Done = true;
-
+                    //production.Done = true;                    
                     Console.WriteLine($"[{progress}/{maxProgress}] Download url result [{production.Title} ({production.DownloadUrlStatus} {production.DownloadUrl})]");
-
                     if (saveCounter++ >= 10)
                     {
                         saveCounter = 0;
@@ -282,7 +280,7 @@ namespace PouetRobot
 
         private bool DoICare(Production production)
         {
-            if (production.Title.ToLower().Contains("game"))
+            if (production.Type.ToLower().Contains("game"))
             {
                 return false;
             }
