@@ -69,17 +69,13 @@ namespace PouetRobot
 
             Console.WriteLine("Begin download!");
 
-            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, whitelistFileSuffixes, whitelistBasePaths, blacklistBasePaths);
+            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, whitelistFileSuffixes, whitelistBasePaths, blacklistBasePaths);            
             robot.GetProdList();
             robot.GetDownloadLinks();
 
             Console.WriteLine("All is done! Press enter!");
             Console.ReadLine();
         }
-
-
-        
-
     }
 
     public class Robot
@@ -102,15 +98,21 @@ namespace PouetRobot
             _blacklistBasePaths = blacklistBasePaths;
         }
 
-        public List<Production> Productions { get; set; }
+        public IDictionary<int, Production> Productions { get; set; }
 
         public void GetProdList()
         {
             var nextUrl = _startPageUrl;
-            Productions = new List<Production>();
+            Productions = new Dictionary<int, Production>();
 
             if (LoadProductions())
             {
+                //foreach (var production in Productions)
+                //{
+                //    production.Value.DownloadUrlStatus = DownloadUrlStatus.Unknown;
+                //}
+                //SaveProductions();
+
                 return;
             }
 
@@ -129,7 +131,7 @@ namespace PouetRobot
             var productionsFileName = GetProductionsFileName();
             if (File.Exists(productionsFileName))
             {
-                Productions = JsonConvert.DeserializeObject<List<Production>>(File.ReadAllText((productionsFileName)));
+                Productions = JsonConvert.DeserializeObject<IDictionary<int, Production>>(File.ReadAllText((productionsFileName)));
                 return true;
             }
 
@@ -139,8 +141,9 @@ namespace PouetRobot
         private void SaveProductions()
         {
             Console.WriteLine("Saving Productions json file!");
+            
             var productionsFileName = GetProductionsFileName();
-            var productionsJson = JsonConvert.SerializeObject(Productions, Formatting.Indented, new JsonConverter[] { new StringEnumConverter() });
+            var productionsJson = JsonConvert.SerializeObject(Productions, Formatting.Indented, new StringEnumConverter());
             File.WriteAllText(productionsFileName, productionsJson);
         }
 
@@ -222,7 +225,6 @@ namespace PouetRobot
 
                 var production = new Production
                 {
-                    PouetId = prodPageUrlProdId,
                     PouetUrl = prodPageUrl,
                     Title = prodTitle,
                     Type = type,
@@ -232,7 +234,7 @@ namespace PouetRobot
                     PartyDescription = partyDescription,
                     ReleaseDate = releaseDate
                 };
-                Productions.Add(production);
+                Productions.Add(prodPageUrlProdId, production);
 
                 Console.WriteLine($"Production: {production}");
             }
@@ -253,10 +255,16 @@ namespace PouetRobot
             //SaveProductions();
 
 
-            foreach (var production in Productions)
+            foreach (var productionPair in Productions)
             {
+                var production = productionPair.Value;
+                
                 progress++;
-                if (production.DownloadUrlStatus == DownloadUrlStatus.Unknown)
+                if (production.DownloadUrlStatus == DownloadUrlStatus.Ok)
+                {
+                    Console.WriteLine($"[{progress}/{maxProgress}] Already have download url for [{production.Title} ({production.DownloadUrl})]");
+                }
+                else if(DoICare(production))
                 {
                     GetDownloadLink(production);
                     //production.Done = true;
@@ -269,11 +277,17 @@ namespace PouetRobot
                         SaveProductions();
                     }
                 }
-                else
-                {
-                    Console.WriteLine($"[{progress}/{maxProgress}] Already have download url for [{production.Title} ({production.DownloadUrl})]");
-                }
             }
+        }
+
+        private bool DoICare(Production production)
+        {
+            if (production.Title.ToLower().Contains("game"))
+            {
+                return false;
+            }
+
+            return true;
         }
 
         private void GetDownloadLink(Production production)
@@ -287,18 +301,31 @@ namespace PouetRobot
                     ?.Value
                 ;
 
-            
-            var probeResult = ProbeDownloadUrl(mainDownloadUrl);
 
-            production.DownloadUrl = probeResult.DownloadUrl;
-            production.DownloadUrlStatus = probeResult.Status;
+            //var probeResult = ProbeDownloadUrl(mainDownloadUrl);
+
+            //production.DownloadUrl = probeResult.DownloadUrl;
+            //production.DownloadUrlStatus = probeResult.Status;
+            if (mainDownloadUrl != null)
+            {
+                production.DownloadUrl = mainDownloadUrl;
+                production.DownloadUrlStatus = DownloadUrlStatus.Ok;
+            }
+            else
+            {
+                production.DownloadUrlStatus = DownloadUrlStatus.Error;
+            }
         }
 
         private (string DownloadUrl, DownloadUrlStatus Status) ProbeDownloadUrl(string downloadUrl)
         {
             if (IsSkipLink(downloadUrl))
             {
-                return (downloadUrl, DownloadUrlStatus.Skip);
+                // ERROR!!!
+
+
+                //return (downloadUrl, DownloadUrlStatus.Skip);
+
             }
 
             if (IsTinyCcLink(downloadUrl))
@@ -462,9 +489,9 @@ namespace PouetRobot
         }
     }
 
-    public class Production  
+   public class Production
     {
-        public int PouetId { get; set; }
+        //public int PouetId { get; set; }
         public string PouetUrl { get; set; }
         public string Title { get; set; }
         public string Type { get; set; }
@@ -490,6 +517,6 @@ namespace PouetRobot
     {
         Unknown = 0,
         Ok,
-        Skip
+        Error
     }
 }
