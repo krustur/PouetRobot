@@ -9,11 +9,15 @@ using System.Web;
 using HtmlAgilityPack;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using Serilog;
+using Serilog.Core;
 
 namespace PouetRobot
 {
     class Program
     {
+        private static Logger _logger;
+
         static void Main(string[] args)
         {
             var productionsPath = @"D:\Temp\PouetDownload\";
@@ -66,14 +70,17 @@ namespace PouetRobot
                 "https://sordan.ie/",
             };
             //var startPageUrl = "http://www.pouet.net/prodlist.php?platform[0]=Amiga+AGA&platform[1]=Amiga+OCS/ECS&page=685";
+            _logger = new LoggerConfiguration()
+                .WriteTo.ColoredConsole()
+                .WriteTo.RollingFile("PouetRobot{date}.log")
+                .CreateLogger();
+                _logger.Information("Begin download!");
 
-            Console.WriteLine("Begin download!");
-
-            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, whitelistFileSuffixes, whitelistBasePaths, blacklistBasePaths);            
+            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, whitelistFileSuffixes, whitelistBasePaths, blacklistBasePaths, _logger);            
             robot.GetProdList();
             robot.GetDownloadLinks();
 
-            Console.WriteLine("All is done! Press enter!");
+            _logger.Information("All is done! Press enter!");
             Console.ReadLine();
         }
     }
@@ -86,9 +93,10 @@ namespace PouetRobot
         private readonly List<string> _whitelistFileSuffixes;
         private readonly List<string> _whitelistBasePaths;
         private readonly List<string> _blacklistBasePaths;
+        private readonly Logger _logger;
 
         public Robot(string startPageUrl, string productionsPath, string productionsFileName, List<string> whitelistFileSuffixes, List<string> whitelistBasePaths,
-            List<string> blacklistBasePaths)
+            List<string> blacklistBasePaths, Logger logger)
         {
             _startPageUrl = startPageUrl;
             _productionsPath = productionsPath;
@@ -96,6 +104,7 @@ namespace PouetRobot
             _whitelistFileSuffixes = whitelistFileSuffixes;
             _whitelistBasePaths = whitelistBasePaths;
             _blacklistBasePaths = blacklistBasePaths;
+            _logger = logger;
         }
 
         public IDictionary<int, Production> Productions { get; set; }
@@ -140,7 +149,7 @@ namespace PouetRobot
 
         private void SaveProductions()
         {
-            Console.WriteLine("Saving Productions json file!");
+            _logger.Information("Saving Productions json file!");
             
             var productionsFileName = GetProductionsFileName();
             var productionsJson = JsonConvert.SerializeObject(Productions, Formatting.Indented, new StringEnumConverter());
@@ -236,7 +245,7 @@ namespace PouetRobot
                 };
                 Productions.Add(prodPageUrlProdId, production);
 
-                Console.WriteLine($"Production: {production}");
+                _logger.Information("Production: {Production}", production);
             }
 
             //Console.ReadLine();
@@ -250,7 +259,7 @@ namespace PouetRobot
             var maxProgress = Productions.Count;
 
 
-            //Console.WriteLine("Clean start!!!");
+            //_logger.Information("Clean start!!!");
             //Productions.ForEach(x => x.DownloadUrlStatus = DownloadUrlStatus.Unknown);
             //SaveProductions();
 
@@ -262,13 +271,15 @@ namespace PouetRobot
                 progress++;
                 if (production.DownloadUrlStatus == DownloadUrlStatus.Ok)
                 {
-                    Console.WriteLine($"[{progress}/{maxProgress}] Already have download url for [{production.Title} ({production.DownloadUrl})]");
+                    _logger.Information("[{Progress}/{MaxProgress}] Already have download url for [{Title} ({DownloadUrl})]", 
+                        progress, maxProgress, production.Title, production.DownloadUrl);
                 }
                 else if(DoICare(production))
                 {
                     GetDownloadLink(production);
                     //production.Done = true;                    
-                    Console.WriteLine($"[{progress}/{maxProgress}] Download url result [{production.Title} ({production.DownloadUrlStatus} {production.DownloadUrl})]");
+                    _logger.Information("[{progress}/{maxProgress}] Download url result [{Title} ({DownloadUrlStatus} {DownloadUrl})]",
+                        progress, maxProgress, production.Title, production.DownloadUrlStatus, production.DownloadUrl);
                     if (saveCounter++ >= 10)
                     {
                         saveCounter = 0;
@@ -464,9 +475,9 @@ namespace PouetRobot
             return newPath.ToString();
         }
 
-        private static HtmlDocument GetHtmlDocument(string pageUrl)
+        private HtmlDocument GetHtmlDocument(string pageUrl)
         {
-            Console.WriteLine($"GET url [{pageUrl}]: ");
+            _logger.Information("GET url {PageUrl}: ", pageUrl);
 
             var web = new HtmlWeb();
             var doc = web.Load(pageUrl);
