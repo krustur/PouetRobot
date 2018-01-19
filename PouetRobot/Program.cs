@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using HtmlAgilityPack;
@@ -21,7 +23,9 @@ namespace PouetRobot
         static void Main(string[] args)
         {
             var productionsPath = @"D:\Temp\PouetDownload\";
+            var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
             var productionsFileName = $@"Productions.json";
+            //var startPageUrl = "http://www.pouet.net/prodlist.php?platform[0]=Amiga+AGA&platform[1]=Amiga+OCS/ECS&page=685";
             var startPageUrl = "http://www.pouet.net/prodlist.php?platform[]=Amiga+AGA&platform[]=Amiga+OCS/ECS&platform[]=Amiga+PPC/RTG";
             var whitelistFileSuffixes = new List<string>
             {
@@ -69,14 +73,13 @@ namespace PouetRobot
                 "http://mega.szajb.us/",
                 "https://sordan.ie/",
             };
-            //var startPageUrl = "http://www.pouet.net/prodlist.php?platform[0]=Amiga+AGA&platform[1]=Amiga+OCS/ECS&page=685";
             _logger = new LoggerConfiguration()
                 .WriteTo.ColoredConsole()
                 .WriteTo.RollingFile("PouetRobot{date}.log")
                 .CreateLogger();
                 _logger.Information("Begin download!");
 
-            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, whitelistFileSuffixes, whitelistBasePaths, blacklistBasePaths, _logger);            
+            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath, whitelistFileSuffixes, whitelistBasePaths, blacklistBasePaths, _logger);            
             robot.GetProdList();
             robot.GetDownloadLinks();
 
@@ -90,13 +93,15 @@ namespace PouetRobot
         private readonly string _startPageUrl;
         private readonly string _productionsPath;
         private readonly string _productionsFileName;
+        private readonly string _webCachePath;
         private readonly List<string> _whitelistFileSuffixes;
         private readonly List<string> _whitelistBasePaths;
         private readonly List<string> _blacklistBasePaths;
         private readonly Logger _logger;
 
-        public Robot(string startPageUrl, string productionsPath, string productionsFileName, List<string> whitelistFileSuffixes, List<string> whitelistBasePaths,
-            List<string> blacklistBasePaths, Logger logger)
+        public Robot(string startPageUrl, string productionsPath, string productionsFileName,
+            string webCachePath, List<string> whitelistFileSuffixes,
+            List<string> whitelistBasePaths, List<string> blacklistBasePaths, Logger logger)
         {
             _startPageUrl = startPageUrl;
             _productionsPath = productionsPath;
@@ -104,6 +109,7 @@ namespace PouetRobot
             _whitelistFileSuffixes = whitelistFileSuffixes;
             _whitelistBasePaths = whitelistBasePaths;
             _blacklistBasePaths = blacklistBasePaths;
+            _webCachePath = webCachePath;
             _logger = logger;
         }
 
@@ -243,9 +249,16 @@ namespace PouetRobot
                     PartyDescription = partyDescription,
                     ReleaseDate = releaseDate
                 };
+                if (Productions.ContainsKey(prodPageUrlProdId))
+                {
+                    _logger.Information("Updating production [{PouetId}] - [{Production}]", prodPageUrlProdId, production);
+                    Productions.Remove(prodPageUrlProdId);
+                }
+                else
+                {
+                    _logger.Information("Adding new production [{PouetId}] - [{Production}]", prodPageUrlProdId, production);
+                }
                 Productions.Add(prodPageUrlProdId, production);
-
-                _logger.Information("Production: {Production}", production);
             }
 
             //Console.ReadLine();
@@ -276,17 +289,19 @@ namespace PouetRobot
                 }
                 else if(DoICare(production))
                 {
-                    GetDownloadLink(production);
+                    GetDownloadLink(productionPair.Key, production);
                     //production.Done = true;                    
                     _logger.Information("[{progress}/{maxProgress}] Download url result [{Title} ({DownloadUrlStatus} {DownloadUrl})]",
                         progress, maxProgress, production.Title, production.DownloadUrlStatus, production.DownloadUrl);
-                    if (saveCounter++ >= 10)
+                    if (saveCounter++ >= 25)
                     {
                         saveCounter = 0;
                         SaveProductions();
                     }
                 }
             }
+            SaveProductions();
+
         }
 
         private bool DoICare(Production production)
@@ -299,9 +314,9 @@ namespace PouetRobot
             return true;
         }
 
-        private void GetDownloadLink(Production production)
+        private void GetDownloadLink(int pouetId, Production production)
         {
-            var doc = GetHtmlDocument(production.PouetUrl);
+            var doc = GetHtmlDocument(pouetId, production.PouetUrl);
 
             var mainDownloadUrl = doc.DocumentNode
                     .SelectNodes("//a[contains(@id, 'mainDownloadLink')]")
@@ -477,13 +492,75 @@ namespace PouetRobot
 
         private HtmlDocument GetHtmlDocument(string pageUrl)
         {
-            _logger.Information("GET url {PageUrl}: ", pageUrl);
-
-            var web = new HtmlWeb();
-            var doc = web.Load(pageUrl);
+            var pageContent = GetUrl(-1, pageUrl);
+            var doc = new HtmlDocument();
+            doc.LoadHtml(pageContent);
 
             return doc;
         }
+
+        private HtmlDocument GetHtmlDocument(int pouetId, string pageUrl)
+        {
+            var pageContent = GetUrl(pouetId, pageUrl);
+            var doc = new HtmlDocument();
+            doc.LoadHtml(pageContent);
+
+            return doc;
+        }
+
+        private string GetUrl(int prefixId, string pageUrl)
+        {
+            var hash = Sha256Hash($"{prefixId}_{pageUrl}");
+            var cacheFileName = prefixId == -1 ? $"{hash}.dat" : $"{prefixId}_{hash}.dat";
+            var cacheFileFullPath = $"{_webCachePath}{cacheFileName}";
+            if (File.Exists(cacheFileFullPath))
+            {
+                _logger.Information("Using cached file url [{CacheFileName}] {PageUrl}: ", cacheFileName, pageUrl);
+                return File.ReadAllText(cacheFileFullPath);
+            }
+
+            _logger.Information("GET url {PageUrl}: ", pageUrl);
+
+            var client = new HttpClient();
+            var getTask = client.GetAsync(pageUrl);
+            getTask.Wait();
+            var contentTask = getTask.Result.Content.ReadAsStringAsync();
+            contentTask.Wait();
+
+            var pageContent = contentTask.Result;
+            File.WriteAllText(cacheFileFullPath, pageContent);
+
+            return pageContent;
+        }
+
+        public static string Sha256Hash(string value)
+        {
+            var sb = new StringBuilder();
+
+            using (var hash = MD5.Create())
+            {
+                var result = hash.ComputeHash(Encoding.UTF8.GetBytes(value));
+
+                foreach (var b in result)
+                    sb.Append(b.ToString("x2"));
+            }
+
+            return sb.ToString();
+        }
+ //public static string Sha256Hash(string value)
+ //       {
+ //           var sb = new StringBuilder();
+
+ //           using (var hash = SHA256.Create())
+ //           {
+ //               var result = hash.ComputeHash(Encoding.UTF8.GetBytes(value));
+
+ //               foreach (var b in result)
+ //                   sb.Append(b.ToString("x2"));
+ //           }
+
+ //           return sb.ToString();
+ //       }
 
         private static string DecodeUrlString(string url)
         {
