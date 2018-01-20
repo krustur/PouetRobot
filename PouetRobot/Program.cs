@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.FtpClient;
 using System.Net.Http;
 using System.Net.Mime;
 using System.Security.Authentication;
@@ -197,7 +198,7 @@ namespace PouetRobot
                     .SelectNodes(@"//*[@id=""pouetbox_prodlist""]/tr")
                 ;
 
-            int rowCount = 0;
+            var rowCount = 0;
             foreach (var prodsRow in prodsRows)
             {
                 rowCount++;
@@ -424,7 +425,7 @@ namespace PouetRobot
         {
             var bytes = Encoding.ASCII.GetBytes(content);
 
-            string lhaMethodId = GetIdString(bytes, 2, 5);
+            var lhaMethodId = GetIdString(bytes, 2, 5);
             if (_lhaMethodIds.Contains(lhaMethodId))
             {
                 return FileType.Lha;
@@ -620,23 +621,52 @@ namespace PouetRobot
                 return (new HttpResponseMessage(HttpStatusCode.OK), File.ReadAllText(cacheFileFullPath));
             }
 
-
-
             _logger.Information("GET url {PageUrl}: ", pageUrl);
+            var pageUri = new Uri(pageUrl);
+            if (pageUri.Scheme == Uri.UriSchemeFtp)
+            {
+
+                var request = new WebClient();
+
+                //request.Credentials = new NetworkCredential("anonymous", "janeDoe@contoso.com");
+                try
+                {
+                    var newFileData = request.DownloadData(pageUri.ToString());
+                    var content = System.Text.Encoding.UTF8.GetString(newFileData);
+                    return (new HttpResponseMessage(HttpStatusCode.OK), content);
+                }
+                catch (WebException e)
+                {
+                    _logger.Error(e, "FTP error");
+                    return (new HttpResponseMessage(HttpStatusCode.InternalServerError), null);
+                }
+
+                //using (var ftpClient = new FtpClient())
+                //{
+                //    ftpClient.
+                //}
+            }
+            else
+            {
 
 
-            System.Net.ServicePointManager.SecurityProtocol =
-                SecurityProtocolType.Tls12 |
-                SecurityProtocolType.Tls11 |
-                SecurityProtocolType.Tls; // comparable to modern browsers
+                System.Net.ServicePointManager.SecurityProtocol =
+                    SecurityProtocolType.Tls12 |
+                    SecurityProtocolType.Tls11 |
+                    SecurityProtocolType.Tls; // comparable to modern browsers
 
-            var result = _httpClient.GetAsync(pageUrl).GetAwaiter().GetResult();
-            var contentTask = result.Content.ReadAsStringAsync();
-            contentTask.Wait();
+                var result = _httpClient.GetAsync(pageUrl).GetAwaiter().GetResult();
+                var contentTask = result.Content.ReadAsStringAsync();
+                contentTask.Wait();
 
-            var pageContent = contentTask.Result;
-            File.WriteAllText(cacheFileFullPath, pageContent);
-            return (result, pageContent);
+                var pageContent = contentTask.Result;
+                if (result.StatusCode == HttpStatusCode.OK)
+                {
+                    File.WriteAllText(cacheFileFullPath, pageContent);
+                }
+
+                return (result, pageContent);
+            }
         }
 
         public void Dispose()
