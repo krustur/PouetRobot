@@ -18,7 +18,6 @@ using Newtonsoft.Json.Converters;
 using Serilog;
 using Serilog.Core;
 
-
 namespace PouetRobot
 {
     class Program
@@ -26,7 +25,15 @@ namespace PouetRobot
         private static Logger _logger;
 
         static void Main(string[] args)
-        {               
+        {
+            var handler = new HttpClientHandler();
+            handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+            handler.SslProtocols = SslProtocols.Tls12;
+            handler.ClientCertificates.Add(new X509Certificate2(@"D:\Temp\PouetDownload\RootCATest.cer"));
+            var client = new HttpClient(handler);
+            var result = client.GetAsync("https://files.scene.org/get/parties/2017/unc17/combined_oldskool/bpa.zip").GetAwaiter().GetResult();
+            return;
+
             var productionsPath = @"D:\Temp\PouetDownload\";
             var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
             var productionsFileName = $@"Productions.json";
@@ -98,7 +105,7 @@ namespace PouetRobot
         }
     }
 
-    public class Robot : IDisposable
+    public class Robot
     {
         private readonly string _startPageUrl;
         private readonly string _productionsPath;
@@ -108,7 +115,6 @@ namespace PouetRobot
         private readonly List<string> _whitelistBasePaths;
         private readonly List<string> _blacklistBasePaths;
         private readonly Logger _logger;
-        private readonly HttpClient _httpClient;
 
         public Robot(string startPageUrl, string productionsPath, string productionsFileName,
             string webCachePath, List<string> whitelistFileSuffixes,
@@ -122,8 +128,6 @@ namespace PouetRobot
             _blacklistBasePaths = blacklistBasePaths;
             _webCachePath = webCachePath;
             _logger = logger;
-            _httpClient = new HttpClient();
-
         }
 
         public IDictionary<int, Production> Productions { get; set; }
@@ -170,7 +174,7 @@ namespace PouetRobot
         private void SaveProductions()
         {
             _logger.Information("Saving Productions json file!");
-
+            
             var productionsFileName = GetProductionsFileName();
             var productionsJson = JsonConvert.SerializeObject(Productions, Formatting.Indented, new StringEnumConverter());
             File.WriteAllText(productionsFileName, productionsJson);
@@ -290,14 +294,14 @@ namespace PouetRobot
             foreach (var productionPair in Productions)
             {
                 var production = productionPair.Value;
-
+                
                 progress++;
                 if (production.DownloadUrlStatus == DownloadUrlStatus.Ok)
                 {
-                    _logger.Information("[{Progress}/{MaxProgress}] Already have download url for [{Title} ({DownloadUrl})]",
+                    _logger.Information("[{Progress}/{MaxProgress}] Already have download url for [{Title} ({DownloadUrl})]", 
                         progress, maxProgress, production.Title, production.DownloadUrl);
                 }
-                else if (DoICare(production))
+                else if(DoICare(production))
                 {
                     GetDownloadLink(productionPair.Key, production);
                     //production.Done = true;                    
@@ -389,38 +393,20 @@ namespace PouetRobot
 
         }
 
-        private void DownloadProduction(int productionId, Production production, string url = null)
+        private void DownloadProduction(int productionId, Production production)
         {
-            var response = GetUrl(productionId, url ?? production.DownloadUrl);
-            switch (response.HttpResponseMessage.StatusCode)
-            {
-                case HttpStatusCode.Found:
-                    DownloadProduction(productionId, production, response.HttpResponseMessage.Headers.Location.AbsoluteUri);
-                    return;
-                case HttpStatusCode.OK:
-                    var fileType = GetFileType(response.Content);
-                    HandleProductionContent(productionId, production, fileType, response.Content);
-                    return;
-            }         
+            var content = GetUrl(productionId, production.DownloadUrl);
+            var xxx = GetContentType(content);
         }
 
-        private void HandleProductionContent(int productionId, Production production, FileType fileType, string content)
-        {
-            switch (fileType)
-            {
-                case FileType.Lha:
-                    return;
-            }
-        }
-
-        private readonly string[] _lhaMethodIds =
+        private readonly string[] _lhaMethodIds  = 
         {
             "-lh0-", "-lh1-", "-lh2-", "-lh3-", "-lh4-", "-lh5-", "-lh6-", "-lh7-", "-lh8-",
             "-lhd-",
-            "-lzs-", "-lz4-",
+            "-lzs-", "-lz4-", 
         };
 
-        private FileType GetFileType(string content)
+        private FileType GetContentType(string content)
         {
             var bytes = Encoding.ASCII.GetBytes(content);
 
@@ -589,60 +575,71 @@ namespace PouetRobot
 
         private HtmlDocument GetHtmlDocument(string pageUrl)
         {
-            var response = GetUrl(-1, pageUrl);
+            var pageContent = GetUrl(-1, pageUrl);
             var doc = new HtmlDocument();
-            doc.LoadHtml(response.Content);
+            doc.LoadHtml(pageContent);
 
             return doc;
         }
 
         private HtmlDocument GetHtmlDocument(int pouetId, string pageUrl)
         {
-            var response = GetUrl(pouetId, pageUrl);
+            var pageContent = GetUrl(pouetId, pageUrl);
             var doc = new HtmlDocument();
-            doc.LoadHtml(response.Content);
+            doc.LoadHtml(pageContent);
 
             return doc;
         }
 
-        private (HttpResponseMessage HttpResponseMessage, string Content) GetUrl(int prefixId, string pageUrl)
+        private string GetUrl(int prefixId, string pageUrl)
         {
             var hash = Sha256Hash($"{prefixId}_{pageUrl}");
             var cacheFileName = prefixId == -1 ? $"{hash}.dat" : $"{prefixId}_{hash}.dat";
-            var cacheFileFullPath = prefixId == -1
-                ?
+            var cacheFileFullPath = prefixId == -1 ?
                 //$"{_webCachePath}Global\\{cacheFileName}"
-                Path.Combine(_webCachePath, "Global", cacheFileName)
-                : Path.Combine(_webCachePath, "Production", cacheFileName);
+                Path.Combine(_webCachePath, "Global", cacheFileName) :
+                Path.Combine(_webCachePath, "Production", cacheFileName);
             if (File.Exists(cacheFileFullPath))
             {
                 _logger.Information("Using cached file url [{CacheFileName}] {PageUrl}: ", cacheFileName, pageUrl);
-                return (new HttpResponseMessage(HttpStatusCode.OK), File.ReadAllText(cacheFileFullPath));
+                return File.ReadAllText(cacheFileFullPath);
             }
 
 
 
             _logger.Information("GET url {PageUrl}: ", pageUrl);
 
+            //HtmlWeb web = new HtmlWeb();
+            //web.
+            //var htmlDoc = web.Load(pageUrl);
 
-            System.Net.ServicePointManager.SecurityProtocol =
-                SecurityProtocolType.Tls12 |
-                SecurityProtocolType.Tls11 |
-                SecurityProtocolType.Tls; // comparable to modern browsers
+            //using (var handler = new HttpClientHandler())
+            {
+                //    handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+                //    handler.SslProtocols = SslProtocols.Tls12;
+                //    //handler.ClientCertificates.Add(new X509Certificate2(@"C:\certificates\cert.pfx"));
+                //    handler.ClientCertificates.Add(new X509Certificate2(@"D:\Temp\PouetDownload\RootCATest.pfx"));
+                //    handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
+                //    handler.SslProtocols = SslProtocols.Tls12 |
+                //                           SslProtocols.Tls11 |
+                //                           SslProtocols.Tls;
+                System.Net.ServicePointManager.SecurityProtocol =
+                    SecurityProtocolType.Tls12 |
+                    SecurityProtocolType.Tls11 |
+                    SecurityProtocolType.Tls; // comparable to modern browsers
 
-            var result = _httpClient.GetAsync(pageUrl).GetAwaiter().GetResult();
-            var contentTask = result.Content.ReadAsStringAsync();
-            contentTask.Wait();
+                //using (var client = new HttpClient(handler))
+                using (var client = new HttpClient())
+                {
+                    var result = client.GetAsync(pageUrl).GetAwaiter().GetResult();
+                    var contentTask = result.Content.ReadAsStringAsync();
+                    contentTask.Wait();
 
-            var pageContent = contentTask.Result;
-            File.WriteAllText(cacheFileFullPath, pageContent);
-            return (result, pageContent);
-        }
-
-        public void Dispose()
-        {
-            _logger?.Dispose();
-            _httpClient?.Dispose();
+                    var pageContent = contentTask.Result;
+                    File.WriteAllText(cacheFileFullPath, pageContent);
+                    return pageContent;
+                }
+            }
         }
 
         public static string Sha256Hash(string value)
