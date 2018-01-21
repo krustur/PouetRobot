@@ -435,6 +435,7 @@ namespace PouetRobot
                 case FileType.Zip:
                 case FileType.Zip7:
                 case FileType.Rar:
+                case FileType.Lzx:
                 case FileType.Adf:
                 case FileType.Dms:
                 case FileType.AmigaExe:
@@ -512,6 +513,11 @@ namespace PouetRobot
             if (content[0] == 'R' && content[1] == 'a' && content[2] == 'r' && content[3] == '!')
             {
                 return FileType.Rar;
+            }
+
+            if (content[0] == 'L' && content[1] == 'Z' && content[2] == 'X')
+            {
+                return FileType.Lzx;
             }
             //else if (content.Length == 880 * 1024)
             //{
@@ -784,7 +790,8 @@ namespace PouetRobot
         Adf,
         Html,
         Dms,
-        Rar
+        Rar,
+        Lzx
     }
 
     public enum FileIdentifiedByType
