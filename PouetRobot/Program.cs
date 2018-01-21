@@ -422,6 +422,7 @@ namespace PouetRobot
             }
             catch (Exception e)
             {
+                _logger.Error(e, "Error when downloading production [{Production}] [{url}]", production.Title, url);
                 production.DownloadProductionStatus = DownloadProductionStatus.Error;
             }
         }
@@ -432,7 +433,10 @@ namespace PouetRobot
             {
                 case FileType.Lha:
                 case FileType.Zip:
+                case FileType.Zip7:
                 case FileType.Adf:
+                case FileType.Dms:
+                case FileType.AmigaExe:
                     production.FileType = fileType;                    
                     production.FileIdentifiedByType = fileIdentifiedByType;
                     production.FileName = fileName;
@@ -488,6 +492,21 @@ namespace PouetRobot
             {
                 return FileType.Zip;
             }
+
+            if (content[0] == 0x00 && content[1] == 0x00 && content[2] == 0x03 && content[3] == 0xf3)
+            {
+                return FileType.AmigaExe;
+            }
+
+            if (content[0] == '7' && content[1] == 'z')
+            {
+                return FileType.Zip7;
+            }
+
+            if (content[0] == 'D' && content[1] == 'M' && content[2] == 'S' && content[3] == '!')
+            {
+                return FileType.Zip;
+            }
             //else if (content.Length == 880 * 1024)
             //{
             //    return FileType.Adf;
@@ -503,7 +522,6 @@ namespace PouetRobot
 
         private FileType GetFileTypeByFileName(string fileName)
         {
-            //var fileNameParts = fileName.Split(".");
             var file = new FileInfo(fileName);
             switch (file.Extension.ToLower())
             {
@@ -525,7 +543,7 @@ namespace PouetRobot
         {
             var contentString = ByteArrayToString(content);
             var tagRegex = new Regex(@"<\s*([^ >]+)[^>]*>.*?<\s*/\s*\1\s*>");
-            var match = tagRegex.Match(contentString.Substring(0, 100));
+            var match = tagRegex.Match(contentString.Substring(0, 3000));
             return match.Success;
         }
 
@@ -871,8 +889,11 @@ namespace PouetRobot
         Unknown = 0,
         Lha,
         Zip,
+        Zip7,
+        AmigaExe,
         Adf,
-        Html
+        Html,
+        Dms
     }
 
     public enum FileIdentifiedByType
