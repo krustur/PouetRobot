@@ -125,7 +125,7 @@ namespace PouetRobot
                 new HtmlLinkProber("//li[contains(@id, 'mainDownload')]/a"),
                 // DemoZoo
                 new HtmlLinkProber("//div[contains(@class, 'primary')]/a"),
-
+                new DropboxUrlProber(),
             };
         }
 
@@ -341,12 +341,7 @@ namespace PouetRobot
                     ?.Attributes["href"]
                     ?.Value
                 ;
-
-
-            //var probeResult = ProbeDownloadUrl(mainDownloadUrl);
-
-            //production.DownloadUrl = probeResult.DownloadUrl;
-            //production.DownloadUrlStatus = probeResult.Status;
+            
             if (mainDownloadUrl != null)
             {
                 production.DownloadUrl = mainDownloadUrl;
@@ -376,13 +371,16 @@ namespace PouetRobot
                     _logger.Information("[{Progress}/{MaxProgress}] Already downloaded [{Title} ({DownloadUrl})]",
                         progress, maxProgress, production.Title, production.DownloadUrl);
                 }
+                else if (production.DownloadProductionStatus == DownloadProductionStatus.Error)
+                {
+                    _logger.Information("[{Progress}/{MaxProgress}] Skipped due to previous Error [{Title} ({DownloadUrl})]",
+                        progress, maxProgress, production.Title, production.DownloadUrl);
+                }
                 else if (DoICare(production))
                 {
                     DownloadProduction(productionPair.Key, production);
-                    //production.Done = true;                    
-                    _logger.Information(
-                        "[{progress}/{maxProgress}] Download production result [{Title} ({DownloadProductionStatus})]",
-                        progress, maxProgress, production.Title, null); //production.DownloadProductionStatus);
+                    _logger.Information("[{progress}/{maxProgress}] Download production result [{Title} ({DownloadProductionStatus})]",
+                        progress, maxProgress, production.Title, null); 
                     if (saveCounter++ >= 25)
                     {
                         saveCounter = 0;
@@ -411,9 +409,11 @@ namespace PouetRobot
                     case HttpStatusCode.OK:
                         var fileTypeByContent = GetFileTypeByContent(response.Content);
                         var fileTypeByName = GetFileTypeByFileName(response.FileName);
-                        var fileType = fileTypeByContent != FileType.Unknown ? fileTypeByContent : fileTypeByName;
-                        
-                        var fileIdentifiedByType = fileTypeByContent != FileType.Unknown ? FileIdentifiedByType.Content : FileIdentifiedByType.FileName;
+                        var fileTypeByContentLength = GetFileTypeByContentLength(response.Content.Length);
+                        var fileType = fileTypeByContent != FileType.Unknown ? fileTypeByContent : fileTypeByName != FileType.Unknown ? fileTypeByName : fileTypeByContentLength;
+                        var fileIdentifiedByType = fileTypeByContent != FileType.Unknown ? FileIdentifiedByType.Content :
+                            fileTypeByName != FileType.Unknown ? FileIdentifiedByType.FileName : FileIdentifiedByType.ContentLength;
+                        var fileIdentifiedByType2 = fileTypeByContent != FileType.Unknown ? FileIdentifiedByType.Content : FileIdentifiedByType.FileName;
                         HandleProductionContent(productionId, production, fileType, fileIdentifiedByType, response.FileName, response.CacheFileName, response.Content, url);
                         return;
                     default:
@@ -460,7 +460,7 @@ namespace PouetRobot
 
             foreach (var htmlProber in _htmlProbers)
             {
-                var probeUrl = htmlProber.GetProbeUrl(doc);
+                var probeUrl = htmlProber.GetProbeUrl(url, doc);
                 if (probeUrl != null)
                 {
                     DownloadProduction(productionId, production, probeUrl);
@@ -545,6 +545,16 @@ namespace PouetRobot
             return FileType.Unknown;
         }
 
+        private FileType GetFileTypeByContentLength(int contentLength)
+        {
+            if (contentLength == 80 * 2 * 11 * 512)
+            {
+                return FileType.Adf;
+            }
+
+            return FileType.Unknown;
+        }
+
         private bool IsHtml(byte[] content)
         {
             var contentString = ByteArrayToString(content);
@@ -553,155 +563,11 @@ namespace PouetRobot
             return match.Success;
         }
 
-
         private string GetIdString(byte[] bytes, int offset, int length)
         {
-            //return System.Text.Encoding.UTF8.GetString(bytes, Math.Max(bytes.Length, offset), Math.Max(length));
             var actualOffset = Math.Min(bytes.Length, offset);
             return System.Text.Encoding.UTF8.GetString(bytes, actualOffset, length);
-        }
-
-        //private (string DownloadUrl, DownloadUrlStatus Status) ProbeDownloadUrl(string downloadUrl)
-        //{
-        //    if (IsSkipLink(downloadUrl))
-        //    {
-        //        // ERROR!!!
-
-
-        //        //return (downloadUrl, DownloadUrlStatus.Skip);
-
-        //    }
-
-        //    if (IsTinyCcLink(downloadUrl))
-        //    {
-        //        return ProbeTinyCcLink(downloadUrl);
-        //    }
-
-        //    if (IsFilesSceneOrg(downloadUrl))
-        //    {
-        //        return ProbeFilesSceneOrg(downloadUrl);
-        //    }
-
-        //    if (IsDemoZooOrg(downloadUrl))
-        //    {
-        //        return ProbeDemoZooOrg(downloadUrl);
-        //    }
-
-        //    if (IsFileDownloadLink(downloadUrl))
-        //    {
-        //        return (downloadUrl, DownloadUrlStatus.Ok);
-        //    }
-
-        //    return (null, DownloadUrlStatus.Unknown);
-        //}
-
-        //private bool IsDemoZooOrg(string downloadUrl)
-        //{
-        //    return downloadUrl.ToLower().StartsWith("https://demozoo.org/");
-
-        //}
-
-        //private (string DownloadUrl, DownloadUrlStatus Status) ProbeDemoZooOrg(string downloadUrl)
-        //{
-        //    var doc = GetHtmlDocument(downloadUrl);
-
-        //    var mainDownloadUrl = doc.DocumentNode
-        //            .SelectNodes("//div[contains(@class, 'primary')]/a")
-        //            ?.FirstOrDefault()
-        //            ?.Attributes["href"]
-        //            ?.Value
-        //        ;
-
-        //    return (mainDownloadUrl, DownloadUrlStatus.Ok);
-        //}
-
-        //private bool IsSkipLink(string downloadUrl)
-        //{
-        //    foreach (var skipBasePath in _blacklistBasePaths)
-        //    {
-        //        if (downloadUrl.ToLower().StartsWith(skipBasePath))
-        //        {
-        //            return true;
-        //        }
-        //    }
-
-        //    return false;
-        //}
-
-        //private bool IsFilesSceneOrg(string downloadUrl)
-        //{
-        //    return downloadUrl.ToLower().StartsWith("https://files.scene.org/view/");
-        //}
-
-        //private (string, DownloadUrlStatus) ProbeFilesSceneOrg(string downloadUrl)
-        //{
-        //    var doc = GetHtmlDocument(downloadUrl);
-
-        //    var mainDownloadUrl = doc.DocumentNode
-        //            .SelectNodes("//li[contains(@id, 'mainDownload')]/a")
-        //            ?.FirstOrDefault()
-        //            ?.Attributes["href"]
-        //            ?.Value
-        //        ;
-
-        //    return (mainDownloadUrl, DownloadUrlStatus.Ok);
-        //}
-
-        //private bool IsTinyCcLink(string mainDownLoadUrl)
-        //{
-        //    return mainDownLoadUrl.ToLower().StartsWith(@"http://tiny.cc/");
-        //}
-
-        //private (string, DownloadUrlStatus) ProbeTinyCcLink(string downloadUrl)
-        //{
-        //    var originalUrl = ResolveTinyCcOriginalUrl(downloadUrl);
-        //    return ProbeDownloadUrl(originalUrl);
-        //}
-
-        //private string ResolveTinyCcOriginalUrl(string downloadUrl)
-        //{
-        //    var httpClient = new HttpClient();
-        //    var get = httpClient.GetAsync(downloadUrl);
-        //    get.Wait();
-        //    var xxx = get.Result;
-        //    var yyy = xxx.RequestMessage.RequestUri;
-        //    return yyy.ToString();
-        //}
-
-        //private bool IsFileDownloadLink(string linkUrl)
-        //{
-        //    if (linkUrl == null)
-        //    {
-        //        return false;
-        //    }
-
-        //    foreach (var directDownloadBasePath in _whitelistBasePaths)
-        //    {
-        //        if (linkUrl.ToLower().StartsWith(directDownloadBasePath))
-        //        {
-        //            return true;
-        //        }
-        //    }
-        //    // Remove query strings
-        //    var linkUrlUri = new Uri(linkUrl);
-        //    linkUrl = $"{linkUrlUri.Scheme}://{linkUrlUri.Host}{linkUrlUri.AbsolutePath}";
-
-
-        //    var linkUrlParts = linkUrl.ToLower().Split(".");
-        //    if (linkUrlParts.Length < 1)
-        //    {
-        //        return false;
-        //    }
-
-        //    var suffix = linkUrlParts[linkUrlParts.Length - 1];
-
-        //    if (_whitelistFileSuffixes.Contains(suffix))
-        //    {
-        //        //return true;
-        //    }
-
-        //    return false;
-        //}
+        }        
 
         private string CombinePath(string fullBaseUrl, string nextPageUrl)
         {
@@ -820,6 +686,12 @@ namespace PouetRobot
         }
     }
 
+    public interface IHtmlProber
+    {
+        string GetProbeUrl(string url, HtmlDocument doc);
+
+    }
+
     public class HtmlLinkProber : IHtmlProber
     {
         private readonly string _linkXPath;
@@ -829,7 +701,7 @@ namespace PouetRobot
             _linkXPath = linkXPath;
         }
 
-        public string GetProbeUrl(HtmlDocument doc)
+        public string GetProbeUrl(string url, HtmlDocument doc)
         {
             var probeUrl = doc.DocumentNode
                 .SelectNodes(_linkXPath)
@@ -840,10 +712,22 @@ namespace PouetRobot
         }
     }
 
-    public interface IHtmlProber
+    public class DropboxUrlProber : IHtmlProber
     {
-        string GetProbeUrl(HtmlDocument doc);
+        public string GetProbeUrl(string url, HtmlDocument doc)
+        {
 
+            if (url.StartsWith("http://www.dropbox.com") || url.StartsWith("https://www.dropbox.com"))
+            {
+                if (url.EndsWith("dl=0"))
+                {
+                    return url.Substring(0, url.Length - 1) + "1";
+                }
+
+                return url + "?dl=1";
+            }
+            return null;
+        }
     }
 
     public class Production
@@ -907,7 +791,8 @@ namespace PouetRobot
     {
         Unknown = 0,
         Content,
-        FileName
+        FileName,
+        ContentLength
     }
 
 }
