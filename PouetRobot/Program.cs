@@ -559,7 +559,7 @@ namespace PouetRobot
         {
             var contentString = ByteArrayToString(content);
             var tagRegex = new Regex(@"<\s*([^ >]+)[^>]*>.*?<\s*/\s*\1\s*>");
-            var match = tagRegex.Match(contentString.Substring(0, 3000));
+            var match = tagRegex.Match(contentString.Substring(0, Math.Min(contentString.Length, 3000)));
             return match.Success;
         }
 
