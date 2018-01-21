@@ -368,19 +368,19 @@ namespace PouetRobot
                 progress++;
                 if (production.DownloadProductionStatus == DownloadProductionStatus.Ok)
                 {
-                    _logger.Information("[{Progress}/{MaxProgress}] Already downloaded [{Title} ({DownloadUrl})]",
-                        progress, maxProgress, production.Title, production.DownloadUrl);
+                    _logger.Information("[{Progress}/{MaxProgress}] Already downloaded [{Production} ({DownloadUrl})]",
+                        progress, maxProgress, production, production.DownloadUrl);
                 }
                 else if (production.DownloadProductionStatus == DownloadProductionStatus.Error)
                 {
-                    _logger.Information("[{Progress}/{MaxProgress}] Skipped due to previous Error [{Title} ({DownloadUrl})]",
-                        progress, maxProgress, production.Title, production.DownloadUrl);
+                    _logger.Information("[{Progress}/{MaxProgress}] Skipped due to previous Error [{Production} ({DownloadUrl})]",
+                        progress, maxProgress, production, production.DownloadUrl);
                 }
                 else if (DoICare(production))
                 {
                     DownloadProduction(productionPair.Key, production);
-                    _logger.Information("[{progress}/{maxProgress}] Downloaded production [{Title} ({DownloadProductionStatus})]",
-                        progress, maxProgress, production.Title, production.DownloadProductionStatus); 
+                    _logger.Information("[{progress}/{maxProgress}] Downloaded production [{Production} ({DownloadProductionStatus})]",
+                        progress, maxProgress, production, production.DownloadProductionStatus); 
                     if (saveCounter++ >= 25)
                     {
                         saveCounter = 0;
