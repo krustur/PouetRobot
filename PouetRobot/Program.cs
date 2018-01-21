@@ -405,28 +405,26 @@ namespace PouetRobot
                     DownloadProduction(productionId, production, response.HttpResponseMessage.Headers.Location.AbsoluteUri);
                     return;
                 case HttpStatusCode.OK:
-                    var fileType = GetFileTypeByContent(response.Content);
-                    if (fileType == FileType.Unknown)
-                    {
-                        fileType = GetFileTypeByFileName(response.FileName);
-                    }
-
-                    HandleProductionContent(production, fileType, response.FileName, response.CacheFileName);
+                    var fileTypeByContent = GetFileTypeByContent(response.Content);
+                    var fileTypeByName = GetFileTypeByFileName(response.FileName);
+                    var fileType = fileTypeByContent != FileType.Unknown ? fileTypeByContent : fileTypeByName;
+                    var fileIdentifiedByType = fileTypeByContent != FileType.Unknown ? FileIdentifiedByType.Content : FileIdentifiedByType.FileName;                
+                    HandleProductionContent(production, fileType, fileIdentifiedByType, response.FileName, response.CacheFileName);
                     return;
                 default:
                     return;
             }
         }
 
-        private void HandleProductionContent(Production production, FileType fileType,
-            string fileName, string cacheFileName)
+        private void HandleProductionContent(Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName)
         {
             switch (fileType)
             {
                 case FileType.Lha:
                 case FileType.Zip:
                 case FileType.Adf:
-                    production.FileType = fileType;
+                    production.FileType = fileType;                    
+                    production.FileIdentifiedByType = fileIdentifiedByType;
                     production.FileName = fileName;
                     production.CacheFileName = cacheFileName;
                     production.DownloadProductionStatus = DownloadProductionStatus.Ok;
@@ -464,7 +462,7 @@ namespace PouetRobot
 
             if (IsHtml(content))
             {
-
+                return FileType.Html;
             }
 
             return FileType.Unknown;
@@ -482,6 +480,9 @@ namespace PouetRobot
                     return FileType.Zip;
                 case ".adf":
                     return FileType.Adf;
+                case ".htm":
+                case ".html":
+                    return FileType.Html;
             }
 
             return FileType.Unknown;
@@ -708,6 +709,7 @@ namespace PouetRobot
                     SecurityProtocolType.Tls11 |
                     SecurityProtocolType.Tls; // comparable to modern browsers
 
+                // TODO: Handle time outs
                 var result = _httpClient.GetAsync(pageUrl).GetAwaiter().GetResult();
                 var content = result.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult(); //.ReadAsStringAsync();
 
@@ -775,6 +777,7 @@ namespace PouetRobot
         public DownloadUrlStatus DownloadUrlStatus { get; set; }
 
         public FileType FileType { get; set; }
+        public FileIdentifiedByType FileIdentifiedByType { get; set; }
         public string FileName { get; set; }
         public string CacheFileName { get; set; }
         public DownloadProductionStatus DownloadProductionStatus { get; set; }
@@ -804,9 +807,18 @@ namespace PouetRobot
 
     public enum FileType
     {
-        Unknown,
+        Unknown = 0,
         Lha,
         Zip,
-        Adf
+        Adf,
+        Html
     }
+
+    public enum FileIdentifiedByType
+    {
+        Unknown = 0,
+        Content,
+        FileName
+    }
+
 }
