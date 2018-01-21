@@ -1,19 +1,12 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.FtpClient;
 using System.Net.Http;
-using System.Net.Mime;
-using System.Security.Authentication;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Web;
 using HtmlAgilityPack;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -111,6 +104,7 @@ namespace PouetRobot
         private readonly List<string> _blacklistBasePaths;
         private readonly Logger _logger;
         private readonly HttpClient _httpClient;
+        private readonly List<IHtmlProber> _htmlProbers;
 
         public Robot(string startPageUrl, string productionsPath, string productionsFileName,
             string webCachePath, List<string> whitelistFileSuffixes,
@@ -125,7 +119,14 @@ namespace PouetRobot
             _webCachePath = webCachePath;
             _logger = logger;
             _httpClient = new HttpClient();
+            _htmlProbers = new List<IHtmlProber>
+            {
+                // FilesSceneOrg
+                new HtmlLinkProber("//li[contains(@id, 'mainDownload')]/a"),
+                // DemoZoo
+                new HtmlLinkProber("//div[contains(@class, 'primary')]/a"),
 
+            };
         }
 
         public IDictionary<int, Production> Productions { get; set; }
@@ -397,26 +398,35 @@ namespace PouetRobot
 
         private void DownloadProduction(int productionId, Production production, string url = null)
         {
-            var response = GetUrl(productionId, url ?? production.DownloadUrl);
-
-            switch (response.HttpResponseMessage.StatusCode)
+            try
             {
-                case HttpStatusCode.Found:
-                    DownloadProduction(productionId, production, response.HttpResponseMessage.Headers.Location.AbsoluteUri);
-                    return;
-                case HttpStatusCode.OK:
-                    var fileTypeByContent = GetFileTypeByContent(response.Content);
-                    var fileTypeByName = GetFileTypeByFileName(response.FileName);
-                    var fileType = fileTypeByContent != FileType.Unknown ? fileTypeByContent : fileTypeByName;
-                    var fileIdentifiedByType = fileTypeByContent != FileType.Unknown ? FileIdentifiedByType.Content : FileIdentifiedByType.FileName;                
-                    HandleProductionContent(production, fileType, fileIdentifiedByType, response.FileName, response.CacheFileName);
-                    return;
-                default:
-                    return;
+                url = url ?? production.DownloadUrl;
+                var response = GetUrl(productionId, url);
+
+                switch (response.HttpResponseMessage.StatusCode)
+                {
+                    case HttpStatusCode.Found:
+                        DownloadProduction(productionId, production, response.HttpResponseMessage.Headers.Location.AbsoluteUri);
+                        return;
+                    case HttpStatusCode.OK:
+                        var fileTypeByContent = GetFileTypeByContent(response.Content);
+                        var fileTypeByName = GetFileTypeByFileName(response.FileName);
+                        var fileType = fileTypeByContent != FileType.Unknown ? fileTypeByContent : fileTypeByName;
+                        
+                        var fileIdentifiedByType = fileTypeByContent != FileType.Unknown ? FileIdentifiedByType.Content : FileIdentifiedByType.FileName;
+                        HandleProductionContent(productionId, production, fileType, fileIdentifiedByType, response.FileName, response.CacheFileName, response.Content, url);
+                        return;
+                    default:
+                        return;
+                }
+            }
+            catch (Exception e)
+            {
+                production.DownloadProductionStatus = DownloadProductionStatus.Error;
             }
         }
 
-        private void HandleProductionContent(Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName)
+        private void HandleProductionContent(int productionId, Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName, byte[] responseContent, string url)
         {
             switch (fileType)
             {
@@ -429,9 +439,31 @@ namespace PouetRobot
                     production.CacheFileName = cacheFileName;
                     production.DownloadProductionStatus = DownloadProductionStatus.Ok;
                     return;
+                case FileType.Html:
+                    HandleHtml(productionId, production, fileType, fileIdentifiedByType, fileName, cacheFileName, responseContent, url);
+                    return;
                 default:
+                    _logger.Warning("Unable to identify file type for [{Production}]", production.Title);
                     return;
             }
+        }
+
+        private void HandleHtml(int productionId, Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName, byte[] responseContent, string url)
+        {
+            var doc = new HtmlDocument();
+            doc.LoadHtml(ByteArrayToString(responseContent));
+
+            foreach (var htmlProber in _htmlProbers)
+            {
+                var probeUrl = htmlProber.GetProbeUrl(doc);
+                if (probeUrl != null)
+                {
+                    DownloadProduction(productionId, production, probeUrl);
+                    return;
+                }
+            }
+
+            _logger.Warning("Unable to probe html for [{Production}] [{url}]", production.Title, url);
         }
 
         private readonly string[] _lhaMethodIds =
@@ -440,6 +472,7 @@ namespace PouetRobot
             "-lhd-",
             "-lzs-", "-lz4-",
         };
+
 
         private FileType GetFileTypeByContent(byte[] content)
         {
@@ -709,16 +742,17 @@ namespace PouetRobot
                     SecurityProtocolType.Tls11 |
                     SecurityProtocolType.Tls; // comparable to modern browsers
 
-                // TODO: Handle time outs
-                var result = _httpClient.GetAsync(pageUrl).GetAwaiter().GetResult();
-                var content = result.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult(); //.ReadAsStringAsync();
 
-                if (result.StatusCode == HttpStatusCode.OK)
+                // TODO: Handle time outs
+                var responseMessage = _httpClient.GetAsync(pageUrl).GetAwaiter().GetResult();
+                var content = responseMessage.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult(); //.ReadAsStringAsync();
+
+                if (responseMessage.StatusCode == HttpStatusCode.OK)
                 {
                     File.WriteAllBytes(cacheFileFullPath, content);
                 }
 
-                return (result, fileName, cacheFileName, content);
+                return (responseMessage, fileName, cacheFileName, content);
             }
         }
 
@@ -762,6 +796,32 @@ namespace PouetRobot
         }
     }
 
+    public class HtmlLinkProber : IHtmlProber
+    {
+        private readonly string _linkXPath;
+
+        public HtmlLinkProber(string linkXPath)
+        {
+            _linkXPath = linkXPath;
+        }
+
+        public string GetProbeUrl(HtmlDocument doc)
+        {
+            var probeUrl = doc.DocumentNode
+                .SelectNodes(_linkXPath)
+                ?.FirstOrDefault()
+                ?.Attributes["href"]
+                ?.Value;
+            return probeUrl;
+        }
+    }
+
+    public interface IHtmlProber
+    {
+        string GetProbeUrl(HtmlDocument doc);
+
+    }
+
     public class Production
     {
         public string PouetUrl { get; set; }
@@ -803,6 +863,7 @@ namespace PouetRobot
         Unknown = 0,
         Ok,
 
+        Error
     }
 
     public enum FileType
