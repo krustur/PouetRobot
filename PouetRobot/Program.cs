@@ -379,8 +379,8 @@ namespace PouetRobot
                 else if (DoICare(production))
                 {
                     DownloadProduction(productionPair.Key, production);
-                    _logger.Information("[{progress}/{maxProgress}] Download production result [{Title} ({DownloadProductionStatus})]",
-                        progress, maxProgress, production.Title, null); 
+                    _logger.Information("[{progress}/{maxProgress}] Downloaded production [{Title} ({DownloadProductionStatus})]",
+                        progress, maxProgress, production.Title, production.DownloadProductionStatus); 
                     if (saveCounter++ >= 25)
                     {
                         saveCounter = 0;
