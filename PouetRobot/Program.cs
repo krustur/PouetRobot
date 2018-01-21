@@ -11,6 +11,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 using HtmlAgilityPack;
@@ -27,7 +28,7 @@ namespace PouetRobot
         private static Logger _logger;
 
         static void Main(string[] args)
-        {               
+        {
             var productionsPath = @"D:\Temp\PouetDownload\";
             var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
             var productionsFileName = $@"Productions.json";
@@ -147,8 +148,8 @@ namespace PouetRobot
             }
 
             while (nextUrl != null
-                   //&& !nextUrl.EndsWith('5')
-                   )
+                //&& !nextUrl.EndsWith('5')
+            )
             {
                 nextUrl = GetProdListPage(nextUrl);
             }
@@ -206,6 +207,7 @@ namespace PouetRobot
                 {
                     continue;
                 }
+
                 var columns = prodsRow.SelectNodes("td");
                 // Title/Type/Platform
                 var titleColumn = columns[0];
@@ -273,6 +275,7 @@ namespace PouetRobot
                 {
                     _logger.Information("Adding new production [{PouetId}] - [{Production}]", prodPageUrlProdId, production);
                 }
+
                 Productions.Add(prodPageUrlProdId, production);
             }
 
@@ -295,14 +298,15 @@ namespace PouetRobot
                 progress++;
                 if (production.DownloadUrlStatus == DownloadUrlStatus.Ok)
                 {
-                    _logger.Information("[{Progress}/{MaxProgress}] Already have download url for [{Title} ({DownloadUrl})]",
+                    _logger.Information("[{Progress}/{MaxProgress}] Already have download url for [{Title} ({DownloadUrl})]", 
                         progress, maxProgress, production.Title, production.DownloadUrl);
                 }
                 else if (DoICare(production))
                 {
                     GetDownloadLink(productionPair.Key, production);
                     //production.Done = true;                    
-                    _logger.Information("[{progress}/{maxProgress}] Download url result [{Title} ({DownloadUrlStatus} {DownloadUrl})]",
+                    _logger.Information(
+                        "[{progress}/{maxProgress}] Download url result [{Title} ({DownloadUrlStatus} {DownloadUrl})]",
                         progress, maxProgress, production.Title, production.DownloadUrlStatus, production.DownloadUrl);
                     if (saveCounter++ >= 25)
                     {
@@ -311,6 +315,7 @@ namespace PouetRobot
                     }
                 }
             }
+
             SaveProductions();
 
         }
@@ -365,19 +370,18 @@ namespace PouetRobot
                 var production = productionPair.Value;
 
                 progress++;
-                //if (production.DownloadProductionStatus == DownloadProductionStatus.Ok)
-                //{
-                //    _logger.Information("[{Progress}/{MaxProgress}] Already have download url for [{Title} ({DownloadUrl})]",
-                //        progress, maxProgress, production.Title, production.DownloadUrl);
-                //}
-                //else 
-                if (DoICare(production))
+                if (production.DownloadProductionStatus == DownloadProductionStatus.Ok)
+                {
+                    _logger.Information("[{Progress}/{MaxProgress}] Already downloaded [{Title} ({DownloadUrl})]",
+                        progress, maxProgress, production.Title, production.DownloadUrl);
+                }
+                else if (DoICare(production))
                 {
                     DownloadProduction(productionPair.Key, production);
                     //production.Done = true;                    
                     _logger.Information(
                         "[{progress}/{maxProgress}] Download production result [{Title} ({DownloadProductionStatus})]",
-                        progress, maxProgress, production.Title, null);//production.DownloadProductionStatus);
+                        progress, maxProgress, production.Title, null); //production.DownloadProductionStatus);
                     if (saveCounter++ >= 25)
                     {
                         saveCounter = 0;
@@ -385,6 +389,7 @@ namespace PouetRobot
                     }
                 }
             }
+
             SaveProductions();
 
 
@@ -393,23 +398,40 @@ namespace PouetRobot
         private void DownloadProduction(int productionId, Production production, string url = null)
         {
             var response = GetUrl(productionId, url ?? production.DownloadUrl);
+
             switch (response.HttpResponseMessage.StatusCode)
             {
                 case HttpStatusCode.Found:
                     DownloadProduction(productionId, production, response.HttpResponseMessage.Headers.Location.AbsoluteUri);
                     return;
                 case HttpStatusCode.OK:
-                    var fileType = GetFileType(response.Content);
-                    HandleProductionContent(productionId, production, fileType, response.Content);
+                    var fileType = GetFileTypeByContent(response.Content);
+                    if (fileType == FileType.Unknown)
+                    {
+                        fileType = GetFileTypeByFileName(response.FileName);
+                    }
+
+                    HandleProductionContent(production, fileType, response.FileName, response.CacheFileName);
                     return;
-            }         
+                default:
+                    return;
+            }
         }
 
-        private void HandleProductionContent(int productionId, Production production, FileType fileType, string content)
+        private void HandleProductionContent(Production production, FileType fileType,
+            string fileName, string cacheFileName)
         {
             switch (fileType)
             {
                 case FileType.Lha:
+                case FileType.Zip:
+                case FileType.Adf:
+                    production.FileType = fileType;
+                    production.FileName = fileName;
+                    production.CacheFileName = cacheFileName;
+                    production.DownloadProductionStatus = DownloadProductionStatus.Ok;
+                    return;
+                default:
                     return;
             }
         }
@@ -421,22 +443,64 @@ namespace PouetRobot
             "-lzs-", "-lz4-",
         };
 
-        private FileType GetFileType(string content)
+        private FileType GetFileTypeByContent(byte[] content)
         {
-            var bytes = Encoding.ASCII.GetBytes(content);
+            //var bytes = Encoding.ASCII.GetBytes(content);
 
-            var lhaMethodId = GetIdString(bytes, 2, 5);
+            var lhaMethodId = GetIdString(content, 2, 5);
             if (_lhaMethodIds.Contains(lhaMethodId))
             {
                 return FileType.Lha;
             }
 
+            if (content[0] == 'P' && content[1] == 'K' && content[2] == 0x03 && content[3] == 0x04)
+            {
+                return FileType.Zip;
+            }
+            //else if (content.Length == 880 * 1024)
+            //{
+            //    return FileType.Adf;
+            //}
+
+            if (IsHtml(content))
+            {
+
+            }
+
             return FileType.Unknown;
         }
 
+        private FileType GetFileTypeByFileName(string fileName)
+        {
+            //var fileNameParts = fileName.Split(".");
+            var file = new FileInfo(fileName);
+            switch (file.Extension.ToLower())
+            {
+                case ".lha":
+                    return FileType.Lha;
+                case ".zip":
+                    return FileType.Zip;
+                case ".adf":
+                    return FileType.Adf;
+            }
+
+            return FileType.Unknown;
+        }
+
+        private bool IsHtml(byte[] content)
+        {
+            var contentString = ByteArrayToString(content);
+            var tagRegex = new Regex(@"<\s*([^ >]+)[^>]*>.*?<\s*/\s*\1\s*>");
+            var match = tagRegex.Match(contentString.Substring(0, 100));
+            return match.Success;
+        }
+
+
         private string GetIdString(byte[] bytes, int offset, int length)
         {
-            return System.Text.Encoding.UTF8.GetString(bytes, offset, length);
+            //return System.Text.Encoding.UTF8.GetString(bytes, Math.Max(bytes.Length, offset), Math.Max(length));
+            var actualOffset = Math.Min(bytes.Length, offset);
+            return System.Text.Encoding.UTF8.GetString(bytes, actualOffset, length);
         }
 
         //private (string DownloadUrl, DownloadUrlStatus Status) ProbeDownloadUrl(string downloadUrl)
@@ -592,7 +656,7 @@ namespace PouetRobot
         {
             var response = GetUrl(-1, pageUrl);
             var doc = new HtmlDocument();
-            doc.LoadHtml(response.Content);
+            doc.LoadHtml(ByteArrayToString(response.Content));
 
             return doc;
         }
@@ -601,12 +665,12 @@ namespace PouetRobot
         {
             var response = GetUrl(pouetId, pageUrl);
             var doc = new HtmlDocument();
-            doc.LoadHtml(response.Content);
+            doc.LoadHtml(ByteArrayToString(response.Content));
 
             return doc;
         }
 
-        private (HttpResponseMessage HttpResponseMessage, string Content) GetUrl(int prefixId, string pageUrl)
+        private (HttpResponseMessage HttpResponseMessage, string FileName, String CacheFileName, Byte[] Content) GetUrl(int prefixId, string pageUrl)
         {
             var hash = Sha256Hash($"{prefixId}_{pageUrl}");
             var cacheFileName = prefixId == -1 ? $"{hash}.dat" : $"{prefixId}_{hash}.dat";
@@ -615,36 +679,25 @@ namespace PouetRobot
                 //$"{_webCachePath}Global\\{cacheFileName}"
                 Path.Combine(_webCachePath, "Global", cacheFileName)
                 : Path.Combine(_webCachePath, "Production", cacheFileName);
+            var pageUri = new Uri(pageUrl);
+            var fileName = pageUri.Segments.Last();
+
             if (File.Exists(cacheFileFullPath))
             {
                 _logger.Information("Using cached file url [{CacheFileName}] {PageUrl}: ", cacheFileName, pageUrl);
-                return (new HttpResponseMessage(HttpStatusCode.OK), File.ReadAllText(cacheFileFullPath));
+                return (new HttpResponseMessage(HttpStatusCode.OK), fileName, cacheFileName, File.ReadAllBytes(cacheFileFullPath));
             }
 
             _logger.Information("GET url {PageUrl}: ", pageUrl);
-            var pageUri = new Uri(pageUrl);
             if (pageUri.Scheme == Uri.UriSchemeFtp)
             {
 
                 var request = new WebClient();
 
-                //request.Credentials = new NetworkCredential("anonymous", "janeDoe@contoso.com");
-                try
-                {
-                    var newFileData = request.DownloadData(pageUri.ToString());
-                    var content = System.Text.Encoding.UTF8.GetString(newFileData);
-                    return (new HttpResponseMessage(HttpStatusCode.OK), content);
-                }
-                catch (WebException e)
-                {
-                    _logger.Error(e, "FTP error");
-                    return (new HttpResponseMessage(HttpStatusCode.InternalServerError), null);
-                }
-
-                //using (var ftpClient = new FtpClient())
-                //{
-                //    ftpClient.
-                //}
+                var content = request.DownloadData(pageUri.ToString());
+                //var content = System.Text.Encoding.UTF8.GetString(newFileData);
+                File.WriteAllBytes(cacheFileFullPath, content);
+                return (new HttpResponseMessage(HttpStatusCode.OK), fileName, cacheFileName, content);
             }
             else
             {
@@ -656,16 +709,14 @@ namespace PouetRobot
                     SecurityProtocolType.Tls; // comparable to modern browsers
 
                 var result = _httpClient.GetAsync(pageUrl).GetAwaiter().GetResult();
-                var contentTask = result.Content.ReadAsStringAsync();
-                contentTask.Wait();
+                var content = result.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult(); //.ReadAsStringAsync();
 
-                var pageContent = contentTask.Result;
                 if (result.StatusCode == HttpStatusCode.OK)
                 {
-                    File.WriteAllText(cacheFileFullPath, pageContent);
+                    File.WriteAllBytes(cacheFileFullPath, content);
                 }
 
-                return (result, pageContent);
+                return (result, fileName, cacheFileName, content);
             }
         }
 
@@ -696,10 +747,16 @@ namespace PouetRobot
             {
                 return null;
             }
+
             string newUrl;
             while ((newUrl = Uri.UnescapeDataString(url)) != url)
                 url = newUrl.Replace("&amp;", "&");
             return newUrl;
+        }
+
+        private string ByteArrayToString(byte[] byteArray)
+        {
+            return System.Text.Encoding.UTF8.GetString(byteArray);
         }
     }
 
@@ -716,6 +773,11 @@ namespace PouetRobot
 
         public string DownloadUrl { get; set; }
         public DownloadUrlStatus DownloadUrlStatus { get; set; }
+
+        public FileType FileType { get; set; }
+        public string FileName { get; set; }
+        public string CacheFileName { get; set; }
+        public DownloadProductionStatus DownloadProductionStatus { get; set; }
 
         public bool Done { get; set; }
 
@@ -736,12 +798,15 @@ namespace PouetRobot
     public enum DownloadProductionStatus
     {
         Unknown = 0,
+        Ok,
 
     }
 
     public enum FileType
     {
         Unknown,
-        Lha
+        Lha,
+        Zip,
+        Adf
     }
 }
