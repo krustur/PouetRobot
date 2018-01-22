@@ -36,8 +36,8 @@ namespace PouetRobot
             _logger.Information("Begin work!");
 
             var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath, _logger);
-            robot.LoadProductions(IndexScanMode.Rescan);
-            robot.DownloadMetadata(MetadataScanMode.Rescan);
+            robot.LoadProductions(IndexScanMode.DisableScan);
+            robot.DownloadMetadata(MetadataScanMode.NoRescan);
             robot.DownloadProductions();
 
             _logger.Information("Work is done! Press enter!");
@@ -240,7 +240,7 @@ namespace PouetRobot
                 progress++;
                 if (production.Metadata.Status == MetadataStatus.Ok && rescan == MetadataScanMode.NoRescan)
                 {
-                    _logger.Information("[{Progress}/{MaxProgress}] Already have metadata for [{Title}]", progress, maxProgress);
+                    _logger.Information("[{Progress}/{MaxProgress}] Already have metadata for [{Production}]", progress, maxProgress, production);
                 }
                 else if (DoICare(production))
                 {
@@ -270,7 +270,7 @@ namespace PouetRobot
                     ?.FirstOrDefault()
                     ?.Attributes["href"]
                     ?.Value
-                ;
+                    ?.Trim();
 
             //public IList<string> Types { get; set; }
             var types = doc.DocumentNode.SelectNodes("//table[contains(@id, 'stattable')]//a[starts-with(@href, 'prodlist.php?type')]//span");
@@ -778,7 +778,7 @@ namespace PouetRobot
     {
         public string GetProbeUrl(string url, HtmlDocument doc)
         {
-
+            url = url.Trim();
             if (url.StartsWith("http://www.dropbox.com") || url.StartsWith("https://www.dropbox.com"))
             {
                 if (url.EndsWith("dl=0"))
