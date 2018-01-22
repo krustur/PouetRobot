@@ -36,8 +36,8 @@ namespace PouetRobot
             _logger.Information("Begin work!");
 
             var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath, _logger);
-            robot.GetProdList(false);
-            //robot.GetDownloadLinks();
+            robot.LoadProductions(IndexScanMode.Rescan);
+            robot.DownloadMetadata(MetadataScanMode.Rescan);
             robot.DownloadProductions();
 
             _logger.Information("Work is done! Press enter!");
@@ -77,60 +77,69 @@ namespace PouetRobot
 
         public IDictionary<int, Production> Productions { get; set; }
 
-        public void GetProdList(bool requireLoadedProductions)
-        {
-            _logger.Information("Fetching production list!");
-            
-            if (LoadProductions())
-            {
-                //foreach (var production in Productions)
-                //{
-                //    production.Value.DownloadUrlStatus = DownloadUrlStatus.Unknown;
-                //}
-                //SaveProductions();
 
-                return;
-            }
-            else if (requireLoadedProductions == false)
+        public void LoadProductions(IndexScanMode indexScanMode)
+        {
+            _logger.Information("Fetching production index!");
+
+            switch (indexScanMode)
             {
-                var nextUrl = _startPageUrl;
-                Productions = new Dictionary<int, Production>();
-                while (nextUrl != null)
+                case IndexScanMode.Rescan:
+                    Productions = LoadProductions();
+                    
+                    RescanIndex(Productions);
+                    SaveProductions();
+                    break;
+                case IndexScanMode.NoRescan:
+                    Productions = LoadProductions();
+                    if (Productions == null)
+                    {
+                        Productions = DownloadIndex();
+                    }
+                    SaveProductions();
+                    break;
+                case IndexScanMode.DisableScan:
+                    Productions = LoadProductions();
+                    break;
+            }           
+        }
+
+        private void RescanIndex(IDictionary<int, Production> productions)
+        {
+            var newProductions = DownloadIndex();
+
+            // TODO: Warn when productions exists in productions, but not in newProductions
+
+            foreach (var newProduction in newProductions)
+            {
+                if (productions.ContainsKey(newProduction.Key))
                 {
-                    nextUrl = GetProdListPage(nextUrl);
+                    var oldProduction = productions[newProduction.Key];
+                    oldProduction.PouetUrl = newProduction.Value.PouetUrl;                  
                 }
-
-                SaveProductions();
+                else
+                {
+                    _logger.Information("Rescan index: Added new production [{Production}]", newProduction.Value);
+                    productions.Add(newProduction.Key, newProduction.Value);
+                }
             }
         }
 
-        private bool LoadProductions()
+        private Dictionary<int, Production> DownloadIndex()
         {
-            var productionsFileName = GetProductionsFileName();
-            if (File.Exists(productionsFileName))
+            var nextUrl = _startPageUrl;
+            var productions = new Dictionary<int, Production>();
+            while (nextUrl != null
+                   //&& nextUrl.EndsWith("6") == false
+                )
             {
-                Productions = JsonConvert.DeserializeObject<IDictionary<int, Production>>(File.ReadAllText((productionsFileName)));
-                return true;
+                nextUrl = DownloadIndexPage(productions, nextUrl);
             }
 
-            return false;
+            return productions;
         }
 
-        private void SaveProductions()
-        {
-            _logger.Information("Saving Productions json file!");
-
-            var productionsFileName = GetProductionsFileName();
-            var productionsJson = JsonConvert.SerializeObject(Productions, Formatting.Indented, new StringEnumConverter());
-            File.WriteAllText(productionsFileName, productionsJson);
-        }
-
-        private string GetProductionsFileName()
-        {
-            return Path.Combine(_productionsPath, _productionsFileName);
-        }
-
-        private string GetProdListPage(string pageUrl)
+        private string DownloadIndexPage(Dictionary<int, Production> productions, string pageUrl)
         {
             var doc = GetHtmlDocument(pageUrl);
 
@@ -159,80 +168,63 @@ namespace PouetRobot
                 // Title/Type/Platform
                 var titleColumn = columns[0];
                 var titleColumnParts = titleColumn.SelectNodes("span");
-                var typeParts = titleColumnParts[0].SelectNodes("span");
-                var type = typeParts.Aggregate(string.Empty, (current, typePart) => current + (" " + typePart.InnerText));
-                type = type.TrimStart();
                 var prodTitle = titleColumnParts[2].InnerText;
                 var prodPageUrl = titleColumnParts[2].SelectNodes("a").First().Attributes["href"].Value;
                 prodPageUrl = CombinePath(pageUrl, prodPageUrl);
                 var prodPageUrlParts = prodPageUrl.Split('=');
                 var prodPageUrlProdId = Convert.ToInt32(prodPageUrlParts[prodPageUrlParts.Length - 1]);
 
-                var platformParts = titleColumnParts[1].SelectNodes("span");
-                var platform = platformParts.Aggregate(string.Empty, (current, typePart) => current + (" " + (typePart.InnerText.Replace("Amiga ", ""))));
-                platform = platform.TrimStart();
-
-                // Group
-                string groupName = null;
-                var groupColumn = columns[1];
-                if (groupColumn.ChildNodes.Count > 1)
-                {
-                    groupName = groupColumn.SelectNodes("a").First().InnerText;
-                    var groupUrl = groupColumn.SelectNodes("a").First().Attributes["href"].Value;
-                    var groupUrlParts = groupUrl.Split('=');
-                    var groupPouetId = Convert.ToInt32(groupUrlParts[groupUrlParts.Length - 1]);
-                }
-
-                // Party
-                string partyDescription = null;
-                var partyColumn = columns[2];
-                if (partyColumn.ChildNodes.Count > 1)
-                {
-                    partyDescription = partyColumn.SelectNodes("a").First().InnerText;
-                }
-
-                // Release date
-                var releaseDateColumn = columns[3];
-                var releaseDate = releaseDateColumn.InnerText;
-
-                var addedColumn = columns[4];
-                var thumbsUpColumn = columns[5];
-                var pigColumn = columns[6];
-                var thumbsDownColumn = columns[7];
-                var averageColumn = columns[8];
-                var popularityColumn = columns[9];
-
                 var production = new Production
                 {
-                    PouetUrl = prodPageUrl,
                     Title = prodTitle,
-                    Type = type,
-                    Platform = platform,
-
-                    Group = groupName,
-                    PartyDescription = partyDescription,
-                    ReleaseDate = releaseDate
+                    PouetUrl = prodPageUrl,                   
                 };
-                if (Productions.ContainsKey(prodPageUrlProdId))
+                if (productions.ContainsKey(prodPageUrlProdId))
                 {
-                    _logger.Information("Updating production [{PouetId}] - [{Production}]", prodPageUrlProdId, production);
-                    Productions.Remove(prodPageUrlProdId);
+                    _logger.Warning("Duplicate production found, will use latest found [{PouetId}] - [{Production}]", prodPageUrlProdId, production);
+                    productions.Remove(prodPageUrlProdId);
                 }
                 else
                 {
-                    _logger.Information("Adding new production [{PouetId}] - [{Production}]", prodPageUrlProdId, production);
+                    _logger.Information("Indexed production [{PouetId}] - [{Production}]", prodPageUrlProdId, production);
                 }
 
-                Productions.Add(prodPageUrlProdId, production);
+                productions.Add(prodPageUrlProdId, production);
             }
 
             //Console.ReadLine();
             return nextPageUrl == null ? null : CombinePath(pageUrl, nextPageUrl);
         }
 
-        public void GetDownloadLinks()
+        private IDictionary<int, Production> LoadProductions()
         {
-            _logger.Information("Fetching download links!");
+            var productionsFileName = GetProductionsFileName();
+            if (File.Exists(productionsFileName))
+            {
+                var productions = JsonConvert.DeserializeObject<IDictionary<int, Production>>(File.ReadAllText((productionsFileName)));
+                return productions;
+            }
+
+            return null;
+        }
+
+        private void SaveProductions()
+        {
+            _logger.Information("Saving Productions json file!");
+
+            var productionsFileName = GetProductionsFileName();
+            var productionsJson = JsonConvert.SerializeObject(Productions, Formatting.Indented, new StringEnumConverter());
+            File.WriteAllText(productionsFileName, productionsJson);
+        }
+
+        private string GetProductionsFileName()
+        {
+            return Path.Combine(_productionsPath, _productionsFileName);
+        }
+
+        public void DownloadMetadata(MetadataScanMode rescan)
+        {
+            _logger.Information("Downloading meta data!");
 
             var saveCounter = 0;
             var progress = 0;
@@ -243,18 +235,16 @@ namespace PouetRobot
                 var production = productionPair.Value;
 
                 progress++;
-                if (production.DownloadUrlStatus == DownloadUrlStatus.Ok)
+                if (production.Metadata.Status == MetadataStatus.Ok && rescan == MetadataScanMode.NoRescan)
                 {
-                    _logger.Information("[{Progress}/{MaxProgress}] Already have download url for [{Title} ({DownloadUrl})]", 
-                        progress, maxProgress, production.Title, production.DownloadUrl);
+                    _logger.Information("[{Progress}/{MaxProgress}] Already have metadata for [{Title}]", progress, maxProgress);
                 }
                 else if (DoICare(production))
                 {
-                    GetDownloadLink(productionPair.Key, production);
-                    //production.Done = true;                    
+                    DownloadMetadataPage(productionPair.Key, production);
                     _logger.Information(
-                        "[{progress}/{maxProgress}] Download url result [{Title} ({DownloadUrlStatus} {DownloadUrl})]",
-                        progress, maxProgress, production.Title, production.DownloadUrlStatus, production.DownloadUrl);
+                        "[{progress}/{maxProgress}] Download metadata {DownloadMetadataStatus} [{Title} ({DownloadUrl})]",
+                        progress, maxProgress, production.Title, production.Metadata.Status, production.Metadata.DownloadUrl);
                     if (saveCounter++ >= 25)
                     {
                         saveCounter = 0;
@@ -267,36 +257,154 @@ namespace PouetRobot
 
         }
 
-        private bool DoICare(Production production)
-        {
-            if (production.Type.ToLower().Contains("game"))
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        private void GetDownloadLink(int pouetId, Production production)
+        private void DownloadMetadataPage(int pouetId, Production production)
         {
             var doc = GetHtmlDocument(pouetId, production.PouetUrl);
 
+            //public string DownloadUrl { get; set; }
             var mainDownloadUrl = doc.DocumentNode
                     .SelectNodes("//a[contains(@id, 'mainDownloadLink')]")
                     ?.FirstOrDefault()
                     ?.Attributes["href"]
                     ?.Value
                 ;
-            
+
+            //public IList<string> Types { get; set; }
+            var types = doc.DocumentNode.SelectNodes("//table[contains(@id, 'stattable')]//a[starts-with(@href, 'prodlist.php?type')]//span");
+            production.Metadata.Types.Clear();
+            if (types != null)
+            {
+                foreach (var htmlNode in types)
+                {
+                    production.Metadata.Types.Add(htmlNode.InnerText);
+                }
+            }
+            //public IList<string> Platforms { get; set; }
+            var platforms = doc.DocumentNode.SelectNodes("//table[contains(@id, 'stattable')]//a[starts-with(@href, 'prodlist.php?platform')]//span");
+            production.Metadata.Platforms.Clear();
+            if (platforms != null)
+            {
+                foreach (var htmlNode in platforms)
+                {
+                    production.Metadata.Platforms.Add(htmlNode.InnerText);
+                }
+            }
+
+            //public IList<string> Groups { get; set; }
+            var groups = doc.DocumentNode
+                    .SelectNodes("//span[contains(@id, 'title')]//a[starts-with(@href, 'groups.php')]");
+            production.Metadata.Groups.Clear();
+            if (groups != null)
+            {
+                foreach (var htmlNode in groups)
+                {
+                    production.Metadata.Groups.Add(htmlNode.InnerText);
+                }
+            }
+
+            //public string Party { get; set; }
+            //public string PartyYear { get; set; }
+            var party = doc.DocumentNode
+                .SelectSingleNode("//table[contains(@id, 'stattable')]//a[starts-with(@href, 'party.php')]");
+            if (party != null)
+            {
+                production.Metadata.Party = party.InnerText;
+                //var year = party.ParentNode.ChildNodes[1].InnerText;
+                var year = party.NextSibling.InnerText;
+                production.Metadata.PartyYear = year.Trim();
+            }
+            //public string PartyCompo { get; set; }
+            var compo = doc.DocumentNode.SelectSingleNode("//table[contains(@id, 'stattable')]//td[starts-with(text(), 'compo')]");
+            if (compo != null)
+            {
+                production.Metadata.PartyCompo = GetStringOrNaNull(compo.NextSibling.NextSibling.InnerText);
+            }
+
+            //public string PartyRank { get; set; }
+            var ranked = doc.DocumentNode.SelectSingleNode("//table[contains(@id, 'stattable')]//td[starts-with(text(), 'ranked')]");
+            if (ranked != null)
+            {
+                production.Metadata.PartyRank = GetStringOrNaNull(ranked.NextSibling.NextSibling.InnerText);
+            }
+
+
+            //public string ReleaseDate { get; set; }
+            var releaseDate = doc.DocumentNode.SelectSingleNode("//table[contains(@id, 'stattable')]//td[starts-with(text(), 'release date')]");
+            if (releaseDate != null)
+            {
+                production.Metadata.ReleaseDate = releaseDate.NextSibling.NextSibling.InnerText;
+            }
+
+            //public int Rulez { get; set; }
+            var rulez = doc.DocumentNode.SelectSingleNode("//img[contains(@alt, 'rulez')]");
+            if (rulez != null)
+            {
+                production.Metadata.Rulez = int.Parse(rulez.NextSibling.InnerText.TrimNbsp());
+            }
+
+            //public int IsOk { get; set; }
+            var isOk = doc.DocumentNode.SelectSingleNode("//img[contains(@alt, 'is ok')]");
+            if (isOk != null)
+            {
+                production.Metadata.IsOk = int.Parse(isOk.NextSibling.InnerText.TrimNbsp());
+            }
+
+            //public int Sucks { get; set; }
+            var sucks = doc.DocumentNode.SelectSingleNode("//img[contains(@alt, 'sucks')]");
+            if (sucks != null)
+            {
+                production.Metadata.Sucks = int.Parse(sucks.NextSibling.InnerText.TrimNbsp());
+            }
+
+            //public decimal Average { get; set; }
+            var totalVotes = (production.Metadata.Rulez + production.Metadata.IsOk + production.Metadata.Sucks);
+            production.Metadata.Average = totalVotes == 0 ? 0 : ((decimal)(production.Metadata.Rulez - production.Metadata.Sucks)) / totalVotes;
+
+            //public int CoupDeCours { get; set; }
+            var coupDeCour = doc.DocumentNode.SelectSingleNode("//img[contains(@alt, 'cdcs')]");
+            if (coupDeCour != null)
+            {
+                production.Metadata.CoupDeCours = int.Parse(coupDeCour.NextSibling.InnerText.TrimNbsp());
+            }
+
+            //public int AllTimeRank { get; set; }
+            var allTimeRank = doc.DocumentNode.SelectSingleNode("//div[contains(@id, 'alltimerank')]");
+            if (allTimeRank != null)
+            {
+                var allTimeRankString = allTimeRank.InnerText.Split('#').Last();
+                production.Metadata.AllTimeRank = int.Parse(allTimeRankString);
+            }
+
+            //public MetadataStatus Status { get; set; }
             if (mainDownloadUrl != null)
             {
-                production.DownloadUrl = mainDownloadUrl;
-                production.DownloadUrlStatus = DownloadUrlStatus.Ok;
+                production.Metadata.DownloadUrl = mainDownloadUrl;
+                production.Metadata.Status = MetadataStatus.Ok;
             }
             else
             {
-                production.DownloadUrlStatus = DownloadUrlStatus.Error;
+                production.Metadata.Status = MetadataStatus.Error;
             }
+        }
+
+        private string GetStringOrNaNull(string str)
+        {
+            if (str == null || str.ToLower() == "n/a")
+            {
+                return null;
+            }
+
+            return str;
+        }
+
+        private bool DoICare(Production production)
+        {
+            //if (production.Type.ToLower().Contains("game"))
+            //{
+            //    return false;
+            //}
+
+            return true;
         }
 
         public void DownloadProductions()
@@ -312,27 +420,29 @@ namespace PouetRobot
                 var production = productionPair.Value;
 
                 progress++;
-                if (production.DownloadProductionStatus == DownloadProductionStatus.Ok)
+
+                if (production.Download.Status == DownloadStatus.Ok)
                 {
                     _logger.Information("[{Progress}/{MaxProgress}] Already downloaded [{Production} ({DownloadUrl})]",
-                        progress, maxProgress, production, production.DownloadUrl);
+                        progress, maxProgress, production, production.Metadata.DownloadUrl);
                 }
-                else if (production.DownloadProductionStatus == DownloadProductionStatus.Error)
+                else if (production.Download.Status == DownloadStatus.Error)
                 {
                     _logger.Information("[{Progress}/{MaxProgress}] Skipped due to previous Error [{Production} ({DownloadUrl})]",
-                        progress, maxProgress, production, production.DownloadUrl);
+                        progress, maxProgress, production, production.Metadata.DownloadUrl);
                 }
                 else if (DoICare(production))
                 {
                     DownloadProduction(productionPair.Key, production);
                     _logger.Information("[{progress}/{maxProgress}] Downloaded production [{Production} ({DownloadProductionStatus})]",
-                        progress, maxProgress, production, production.DownloadProductionStatus); 
+                        progress, maxProgress, production, production.Download.Status); 
                     if (saveCounter++ >= 25)
                     {
                         saveCounter = 0;
                         SaveProductions();
                     }
                 }
+
             }
 
             SaveProductions();
@@ -344,7 +454,7 @@ namespace PouetRobot
         {
             try
             {
-                url = url ?? production.DownloadUrl;
+                url = url ?? production.Metadata.DownloadUrl;
                 var response = GetUrl(productionId, url);
 
                 switch (response.HttpResponseMessage.StatusCode)
@@ -369,12 +479,13 @@ namespace PouetRobot
             catch (Exception e)
             {
                 _logger.Error(e, "Error when downloading production [{Production}] [{url}]", production.Title, url);
-                production.DownloadProductionStatus = DownloadProductionStatus.Error;
+                production.Download.Status = DownloadStatus.Error;
             }
         }
 
         private void HandleProductionContent(int productionId, Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName, byte[] responseContent, string url)
         {
+
             switch (fileType)
             {
                 case FileType.Lha:
@@ -385,11 +496,11 @@ namespace PouetRobot
                 case FileType.Adf:
                 case FileType.Dms:
                 case FileType.AmigaExe:
-                    production.FileType = fileType;                    
-                    production.FileIdentifiedByType = fileIdentifiedByType;
-                    production.FileName = fileName;
-                    production.CacheFileName = cacheFileName;
-                    production.DownloadProductionStatus = DownloadProductionStatus.Ok;
+                    production.Download.FileType = fileType;
+                    production.Download.FileIdentifiedByType = fileIdentifiedByType;
+                    production.Download.FileName = fileName;
+                    production.Download.CacheFileName = cacheFileName;
+                    production.Download.Status = DownloadStatus.Ok;
                     return;
                 case FileType.Html:
                     HandleHtml(productionId, production, fileType, fileIdentifiedByType, fileName, cacheFileName, responseContent, url);
@@ -684,41 +795,87 @@ namespace PouetRobot
 
     public class Production
     {
-        public string PouetUrl { get; set; }
-        public string Title { get; set; }
-        public string Type { get; set; }
-        public string Platform { get; set; }
+        public Production()
+        {
+            Metadata = new ProductionMetadata();
+            Download = new ProductionDownload();
+        }
 
-        public string Group { get; set; }
-        public string PartyDescription { get; set; }
-        public string ReleaseDate { get; set; }
+        // Pass 1 (list)
+        public string Title { get; set; }
+        public string PouetUrl { get; set; }
+        public ProductionMetadata Metadata { get; }
+        public ProductionDownload Download { get; }
+
+        public override string ToString()
+        {
+            return $"{Metadata.Groups.ToSingleString()} / {Title} [{Metadata.Types.ToSingleString()} - {Metadata.Platforms.ToSingleString()}]";
+        }
+    }
+
+    public class ProductionMetadata
+    {
+        public ProductionMetadata()
+        {
+            Types = new List<string>();
+            Platforms = new List<string>();
+            Groups = new List<string>();
+        }
+        // Pass 2 (metadata)
+        public MetadataStatus Status { get; set; }
 
         public string DownloadUrl { get; set; }
-        public DownloadUrlStatus DownloadUrlStatus { get; set; }
 
+        public IList<string> Types { get; set; }
+        public IList<string> Platforms { get; set; }
+        public IList<string> Groups { get; set; }
+
+        public string Party { get; set; }
+        public string PartyYear { get; set; }
+        public string PartyCompo { get; set; }
+        public string PartyRank { get; set; }
+
+        public string ReleaseDate { get; set; }
+        public int Rulez { get; set; }
+        public int IsOk { get; set; }
+        public int Sucks { get; set; }
+        public decimal Average { get; set; }
+        public int CoupDeCours { get; set; }
+        public int AllTimeRank { get; set; }
+    }
+
+    public class ProductionDownload
+    {
+        // Pass 3 (download)
+        public DownloadStatus Status { get; set; }
         public FileType FileType { get; set; }
         public FileIdentifiedByType FileIdentifiedByType { get; set; }
         public string FileName { get; set; }
         public string CacheFileName { get; set; }
-        public DownloadProductionStatus DownloadProductionStatus { get; set; }
-
-        public bool Done { get; set; }
-
-
-        public override string ToString()
-        {
-            return $"{Group} / {Title} [{Type} - {Platform}]";
-        }
     }
 
-    public enum DownloadUrlStatus
+
+    public static class StringListExtensions
+    {
+        public static string ToSingleString(this IList<string> strings)
+        {
+            if (strings.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var result = strings.Aggregate((i, j) => i + "," + j);
+            return result;
+        }
+    }
+    public enum MetadataStatus
     {
         Unknown = 0,
         Ok,
         Error
     }
 
-    public enum DownloadProductionStatus
+    public enum DownloadStatus
     {
         Unknown = 0,
         Ok,
@@ -763,5 +920,29 @@ namespace PouetRobot
             }
         }
     }
+
+    public static class StringExtensions
+    {
+        public static string TrimNbsp(this string source)
+        {
+            return source.Replace("&nbsp;", "").Trim();
+        }
+    }
+
+    public enum IndexScanMode
+    {
+        Unknown = 0,
+        Rescan,
+        NoRescan,
+        DisableScan
+    }
+
+    public enum MetadataScanMode
+    {
+        Unknown = 0,
+        Rescan,
+        NoRescan
+    }
+    
 
 }

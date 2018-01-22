@@ -19,7 +19,7 @@ namespace PouetRobot.StateViewer
         private List<string> _allGroups;
         private List<FileType> _allFileTypes;
         private List<FileIdentifiedByType> _allFileIdentifiedBy;
-        private List<DownloadUrlStatus> _allDownloadUrlStatus;
+        private List<DownloadMetadataStatus> _allDownloadUrlStatus;
         private List<DownloadProductionStatus> _allDownloadProductionStatus;
         private List<string> _allParties;
         private List<string> _allPlatforms;
@@ -41,13 +41,13 @@ namespace PouetRobot.StateViewer
             var productionsFileName = $@"Productions.json";
             var robot = new Robot(null, productionsPath, productionsFileName, webCachePath, _logger);
 
-            robot.GetProdList(false);
+            robot.LoadProductions(false, false);
 
             _allProductions = robot.Productions.Select(x => x.Value).ToList();
             _allGroups = _allProductions.Select(x=> x.Group).DistinctBy(x => x).OrderBy(x => x).ToList();
             _allFileTypes = _allProductions.Select(x=> x.FileType).DistinctBy(x => x).OrderBy(x => x).ToList();
             _allFileIdentifiedBy = _allProductions.Select(x=> x.FileIdentifiedByType).DistinctBy(x => x).OrderBy(x => x).ToList();
-            _allDownloadUrlStatus = _allProductions.Select(x=> x.DownloadUrlStatus).DistinctBy(x => x).OrderBy(x => x).ToList();
+            _allDownloadUrlStatus = _allProductions.Select(x=> x.DownloadMetadataStatus).DistinctBy(x => x).OrderBy(x => x).ToList();
             _allDownloadProductionStatus = _allProductions.Select(x=> x.DownloadProductionStatus).DistinctBy(x => x).OrderBy(x => x).ToList();
             _allParties = _allProductions.Select(x=> x.PartyDescription).DistinctBy(x => x).OrderBy(x => x).ToList();
             var allPlatformsMessy = _allProductions.Select(x=> x.Platform).DistinctBy(x => x).OrderBy(x => x).ToList();
@@ -106,7 +106,7 @@ namespace PouetRobot.StateViewer
 
 
             /*
-             DownloadUrlStatus
+             DownloadMetadataStatus
              DownloadProductionStatus
              FileIdentifiedBy
 
