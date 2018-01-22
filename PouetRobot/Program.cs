@@ -310,7 +310,7 @@ namespace PouetRobot
             {
                 production.Metadata.Party = party.InnerText;
                 //var year = party.ParentNode.ChildNodes[1].InnerText;
-                var year = party.NextSibling.InnerText;
+                var year = party.NextSibling == null ? party.InnerText : party.NextSibling.InnerText;
                 production.Metadata.PartyYear = year.Trim();
             }
             //public string PartyCompo { get; set; }
@@ -372,7 +372,8 @@ namespace PouetRobot
             if (allTimeRank != null)
             {
                 var allTimeRankString = allTimeRank.InnerText.Split('#').Last();
-                production.Metadata.AllTimeRank = int.Parse(allTimeRankString);
+                var couldParse = int.TryParse(allTimeRankString, out var allTimeRankInt);
+                production.Metadata.AllTimeRank = couldParse ? allTimeRankInt : (int?)null;
             }
 
             //public MetadataStatus Status { get; set; }
@@ -499,6 +500,7 @@ namespace PouetRobot
                     production.Download.FileType = fileType;
                     production.Download.FileIdentifiedByType = fileIdentifiedByType;
                     production.Download.FileName = fileName;
+                    production.Download.FileSize= responseContent.Length;
                     production.Download.CacheFileName = cacheFileName;
                     production.Download.Status = DownloadStatus.Ok;
                     return;
@@ -663,7 +665,6 @@ namespace PouetRobot
             var cacheFileName = prefixId == -1 ? $"{hash}.dat" : $"{prefixId}_{hash}.dat";
             var cacheFileFullPath = prefixId == -1
                 ?
-                //$"{_webCachePath}Global\\{cacheFileName}"
                 Path.Combine(_webCachePath, "Global", cacheFileName)
                 : Path.Combine(_webCachePath, "Production", cacheFileName);
             var pageUri = new Uri(pageUrl);
@@ -682,21 +683,16 @@ namespace PouetRobot
                 var request = new WebClient();
 
                 var content = request.DownloadData(pageUri.ToString());
-                //var content = System.Text.Encoding.UTF8.GetString(newFileData);
                 File.WriteAllBytes(cacheFileFullPath, content);
                 return (new HttpResponseMessage(HttpStatusCode.OK), fileName, cacheFileName, content);
             }
             else
             {
-
-
                 System.Net.ServicePointManager.SecurityProtocol =
                     SecurityProtocolType.Tls12 |
                     SecurityProtocolType.Tls11 |
                     SecurityProtocolType.Tls; // comparable to modern browsers
-
-
-                // TODO: Handle time outs
+                
                 var responseMessage = _httpClient.GetAsync(pageUrl).GetAwaiter().GetResult();
                 var content = responseMessage.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult(); //.ReadAsStringAsync();
 
@@ -841,7 +837,7 @@ namespace PouetRobot
         public int Sucks { get; set; }
         public decimal Average { get; set; }
         public int CoupDeCours { get; set; }
-        public int AllTimeRank { get; set; }
+        public int? AllTimeRank { get; set; }
     }
 
     public class ProductionDownload
@@ -851,6 +847,7 @@ namespace PouetRobot
         public FileType FileType { get; set; }
         public FileIdentifiedByType FileIdentifiedByType { get; set; }
         public string FileName { get; set; }
+        public int FileSize { get; set; }
         public string CacheFileName { get; set; }
     }
 
