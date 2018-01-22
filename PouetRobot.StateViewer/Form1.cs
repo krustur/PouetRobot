@@ -103,7 +103,11 @@ namespace PouetRobot.StateViewer
                     //Add a child treenode for each Order object in the current Customer object.
                     foreach (var production in productions)
                     {
-                        groupNode.Nodes.Add(new TreeNode(production.ToString()));
+                        var prodNode = new TreeNode(production.ToString())
+                        {
+                            Name = production.PouetId.ToString()
+                        };
+                        groupNode.Nodes.Add(prodNode);
                     }
 
                     treeView1.Nodes.Add(groupNode);
@@ -129,7 +133,34 @@ namespace PouetRobot.StateViewer
 
         private void treeView1_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            //e.Node.
+            if (e.Node.Name != String.Empty)
+            {
+                var production = _allProductions.Single(x => x.PouetId.ToString() == e.Node.Name);
+
+                labelMetadataStatus.Text = $@"[{production.Metadata.Status.ToString()}]";
+                textBoxTitle.Text = production.Title;
+                textBoxGroups.Text = production.Metadata.Groups.ToSingleString();
+                textBoxTypes.Text = production.Metadata.Types.ToSingleString();
+                textBoxPlatforms.Text = production.Metadata.Platforms.ToSingleString();
+                textBoxParty.Text = production.Metadata.Party;
+                textBoxPartyYear.Text = production.Metadata.PartyYear;
+                textBoxPartyCompo.Text = production.Metadata.PartyCompo;
+                textBoxPartyRank.Text = production.Metadata.PartyRank;
+                textBoxReleaseDate.Text = production.Metadata.ReleaseDate;
+                textBoxRulez.Text = production.Metadata.Rulez.ToString();
+                textBoxItsOk.Text = production.Metadata.IsOk.ToString();
+                textBoxSucks.Text = production.Metadata.Sucks.ToString();
+                textBoxCdcs.Text = production.Metadata.CoupDeCours.ToString();
+                textBoxAllTimeRank.Text = production.Metadata.AllTimeRank.ToString();
+
+                labelDownloadStatus.Text = $@"[{production.Download.Status.ToString()}]";
+                textBoxFileName.Text = production.Download.FileName;
+                textBoxFileType.Text = production.Download.FileType.ToString();
+                textBoxFileSize.Text = production.Download.FileSize.ToString();
+                textBoxFileIdentifiedByType.Text = production.Download.FileIdentifiedByType.ToString();
+                textBoxCacheFileName.Text = production.Download.CacheFileName;
+
+            }
         }
     }
 }

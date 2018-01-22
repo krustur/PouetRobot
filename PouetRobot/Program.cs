@@ -115,6 +115,8 @@ namespace PouetRobot
                 if (productions.ContainsKey(newProduction.Key))
                 {
                     var oldProduction = productions[newProduction.Key];
+                    oldProduction.PouetId = newProduction.Value.PouetId;
+                    oldProduction.Title = newProduction.Value.Title;                  
                     oldProduction.PouetUrl = newProduction.Value.PouetUrl;                  
                 }
                 else
@@ -177,6 +179,7 @@ namespace PouetRobot
                 var production = new Production
                 {
                     Title = prodTitle,
+                    PouetId = prodPageUrlProdId,
                     PouetUrl = prodPageUrl,                   
                 };
                 if (productions.ContainsKey(prodPageUrlProdId))
@@ -798,8 +801,10 @@ namespace PouetRobot
         }
 
         // Pass 1 (list)
+        public int PouetId { get; set; }
         public string Title { get; set; }
         public string PouetUrl { get; set; }
+
         public ProductionMetadata Metadata { get; }
         public ProductionDownload Download { get; }
 
