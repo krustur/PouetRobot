@@ -26,54 +26,8 @@ namespace PouetRobot
             var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
             var productionsFileName = $@"Productions.json";
             //var startPageUrl = "http://www.pouet.net/prodlist.php?platform[0]=Amiga+AGA&platform[1]=Amiga+OCS/ECS&page=685";
-            var startPageUrl =
-                "http://www.pouet.net/prodlist.php?platform[]=Amiga+AGA&platform[]=Amiga+OCS/ECS&platform[]=Amiga+PPC/RTG";
-            var whitelistFileSuffixes = new List<string>
-            {
-                "lha",
-                "zip",
-                "exe",
-                "adf",
-                "dms",
-                "rar",
-                "7z"
-            };
-            var whitelistBasePaths = new List<string>
-            {
-                "http://www.nukleus.nu/",
-                "https://files.scene.org/get/",
-                "http://heckmeck.de/",
-                "ftp://",
-                "http://aminet.net/",
-                "https://amigafrance.com/",
-                "https://www.dropbox.com/",
-                "http://insane.demoscene.se/",
-                "http://cyberpingui.free.fr/",
-                "https://github.com/",
-                "http://www.neoscientists.org/",
-                "https://piwnica.ws/",
-                "http://devkk.net/",
-                "http://juicycube.net/",
-                "http://crinkler.net/",
-                "http://resistance.no/",
-                "http://www.jokov.home.pl/",
-                "https://decrunch.org/",
-                "http://ftp.amigascne.org",
-                "http://rift.team/",
-                "http://jokov.com/",
+            var startPageUrl = "http://www.pouet.net/prodlist.php?platform[]=Amiga+AGA&platform[]=Amiga+OCS/ECS&platform[]=Amiga+PPC/RTG";
 
-
-                //"http://we.tl/",
-                //"http://fatmagnus.ppa.pl/",
-                //"http://www.homme3d.com/",
-                //"http://dl.cloanto.com/",
-            };
-            var blacklistBasePaths = new List<string>
-            {
-                "http://www.speccy.pl/",
-                "http://mega.szajb.us/",
-                "https://sordan.ie/",
-            };
             _logger = new LoggerConfiguration()
                 .WriteTo.ColoredConsole()
                 .WriteTo.RollingFile("PouetRobot{date}.log")
@@ -81,9 +35,8 @@ namespace PouetRobot
 
             _logger.Information("Begin work!");
 
-            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath,
-                whitelistFileSuffixes, whitelistBasePaths, blacklistBasePaths, _logger);
-            robot.GetProdList();
+            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath, _logger);
+            robot.GetProdList(false);
             //robot.GetDownloadLinks();
             robot.DownloadProductions();
 
@@ -99,23 +52,16 @@ namespace PouetRobot
         private readonly string _productionsPath;
         private readonly string _productionsFileName;
         private readonly string _webCachePath;
-        private readonly List<string> _whitelistFileSuffixes;
-        private readonly List<string> _whitelistBasePaths;
-        private readonly List<string> _blacklistBasePaths;
         private readonly Logger _logger;
         private readonly HttpClient _httpClient;
         private readonly List<IHtmlProber> _htmlProbers;
 
         public Robot(string startPageUrl, string productionsPath, string productionsFileName,
-            string webCachePath, List<string> whitelistFileSuffixes,
-            List<string> whitelistBasePaths, List<string> blacklistBasePaths, Logger logger)
+            string webCachePath, Logger logger)
         {
             _startPageUrl = startPageUrl;
             _productionsPath = productionsPath;
             _productionsFileName = productionsFileName;
-            _whitelistFileSuffixes = whitelistFileSuffixes;
-            _whitelistBasePaths = whitelistBasePaths;
-            _blacklistBasePaths = blacklistBasePaths;
             _webCachePath = webCachePath;
             _logger = logger;
             _httpClient = new HttpClient();
@@ -131,12 +77,10 @@ namespace PouetRobot
 
         public IDictionary<int, Production> Productions { get; set; }
 
-        public void GetProdList()
+        public void GetProdList(bool requireLoadedProductions)
         {
             _logger.Information("Fetching production list!");
-            var nextUrl = _startPageUrl;
-            Productions = new Dictionary<int, Production>();
-
+            
             if (LoadProductions())
             {
                 //foreach (var production in Productions)
@@ -147,15 +91,17 @@ namespace PouetRobot
 
                 return;
             }
-
-            while (nextUrl != null
-                //&& !nextUrl.EndsWith('5')
-            )
+            else if (requireLoadedProductions == false)
             {
-                nextUrl = GetProdListPage(nextUrl);
-            }
+                var nextUrl = _startPageUrl;
+                Productions = new Dictionary<int, Production>();
+                while (nextUrl != null)
+                {
+                    nextUrl = GetProdListPage(nextUrl);
+                }
 
-            SaveProductions();
+                SaveProductions();
+            }
         }
 
         private bool LoadProductions()
@@ -761,7 +707,7 @@ namespace PouetRobot
 
         public override string ToString()
         {
-            return $"{Title} / {Group} [{Type} - {Platform}] [{ReleaseDate} - {PartyDescription}]";
+            return $"{Group} / {Title} [{Type} - {Platform}]";
         }
     }
 
@@ -800,6 +746,22 @@ namespace PouetRobot
         Content,
         FileName,
         ContentLength
+    }
+
+    public static class EnumerableExtensions
+    {
+        public static IEnumerable<TSource> DistinctBy<TSource, TKey>
+            (this IEnumerable<TSource> source, Func<TSource, TKey> keySelector)
+        {
+            HashSet<TKey> seenKeys = new HashSet<TKey>();
+            foreach (TSource element in source)
+            {
+                if (seenKeys.Add(keySelector(element)))
+                {
+                    yield return element;
+                }
+            }
+        }
     }
 
 }
