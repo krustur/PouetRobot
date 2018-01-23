@@ -776,7 +776,7 @@ namespace PouetRobot
                 "votedisk", 
                 "wild",
             });
-            folderStructure.Add(new Folder("Groups", GetProductionsFolderStructure(groupProductions, includeTypes: true)));//demo, demopack, dentro, fastdemo, intro
+            folderStructure.Add(new Folder("Groups", GetProductionsFolderStructure(groupProductions, includeTypes: true)));
             folderStructure.Add(new Folder("Artpacks", GetProductionsFolderStructure(productions.FilterType("artpack"), includeTypes: false)));
             folderStructure.Add(new Folder("BBStros", GetProductionsFolderStructure(productions.FilterType("bbstro"), includeTypes: false)));
             folderStructure.Add(new Folder("Cracktros", GetProductionsFolderStructure(productions.FilterType("cracktro"), includeTypes: false)));
@@ -784,20 +784,13 @@ namespace PouetRobot
             folderStructure.Add(new Folder("Diskmags", GetProductionsFolderStructure(productions.FilterType("diskmag"), includeTypes: false)));
             folderStructure.Add(new Folder("Games", GetProductionsFolderStructure(productions.FilterType("game"), includeTypes: false)));
             folderStructure.Add(new Folder("Invitations", GetProductionsFolderStructure(productions.FilterType("invitation"), includeTypes: false)));
-            folderStructure.Add(new Folder("Liveacts", GetProductionsFolderStructure(productions.FilterType("liveact"), includeTypes: false)));
+            //folderStructure.Add(new Folder("Liveacts", GetProductionsFolderStructure(productions.FilterType("liveact"), includeTypes: false)));
             folderStructure.Add(new Folder("Music disks", GetProductionsFolderStructure(productions.FilterType("musicdisk"), includeTypes: false)));
             folderStructure.Add(new Folder("Procedural graphics", GetProductionsFolderStructure(productions.FilterType("procedural graphics"), includeTypes: false)));
             folderStructure.Add(new Folder("Reports", GetProductionsFolderStructure(productions.FilterType("report"), includeTypes: false)));
             folderStructure.Add(new Folder("Slideshows", GetProductionsFolderStructure(productions.FilterType("slideshow"), includeTypes: false)));
             folderStructure.Add(new Folder("Votedisks", GetProductionsFolderStructure(productions.FilterType("votedisk"), includeTypes: false)));
             folderStructure.Add(new Folder("Wild", GetProductionsFolderStructure(productions.FilterType("wild"), includeTypes: false)));
-            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));
-            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));artpack
-            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));bbstro
-            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));cracktro
-            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));demotool
-            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));diskmag
-            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));game
 
             return folderStructure;
         }

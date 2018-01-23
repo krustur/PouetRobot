@@ -104,20 +104,7 @@ namespace PouetRobot.StateViewer
                 .OrderBy(x => x.Title)
                 .ToList()
                 ;
-            //if (checkedFileTypes.Count > 0)
-            //{
-            //    filteredProductions = filteredProductions.Where(x => checkedFileTypes.Contains(x.Download.FileType.ToString())).ToList();
-            //}
-            //if (checkedPlatforms.Count > 0)
-            //{
-            //    filteredProductions = filteredProductions.Where(x => x.Metadata.Platforms.Any(y => checkedPlatforms.Contains(y))).ToList();
-            //}
-            //if (checkedTypes.Count > 0)
-            //{
-            //    filteredProductions = filteredProductions.Where(x => x.Metadata.Types.Any(y => checkedTypes.Contains(y))).ToList();
-            //}
-            //filteredProductions = filteredProductions.OrderBy(x => x.ToString()).ToList();
-
+            
             var totalCount = 0;
             foreach (var group in _allGroups)
             {
@@ -171,9 +158,6 @@ namespace PouetRobot.StateViewer
             {
                 treeViewPreview.Nodes.Add(treeNode);
             }
-            //        treeViewPreview.Nodes.Add(groupNode);
-          
-            //labelProductionsCount.Text = $@"{filteredProductions.Count} ({totalCount})/{_allProductions.Count}";
 
             // Reset the cursor to the default for all controls.
             Cursor.Current = Cursors.Default;
@@ -185,14 +169,14 @@ namespace PouetRobot.StateViewer
         private IList<TreeNode> CreateTreeViewNodes(IList<FileBase> folderLayout)
         {
             var nodes = new List<TreeNode>();
-            foreach (var folder in folderLayout.OfType<Folder>())
+            foreach (var folder in folderLayout.OfType<Folder>().OrderBy(x => x.Name))
             {
                 var children = CreateTreeViewNodes(folder.Childrens);
                 var folderNode = new TreeNode(folder.Name, children.ToArray());
                 nodes.Add(folderNode);
             }
 
-            foreach (var file in folderLayout.OfType<File>())
+            foreach (var file in folderLayout.OfType<File>().OrderBy(x => x.Name))
             {
                 var fileNode = new TreeNode(file.Name);
                 nodes.Add(fileNode);
@@ -243,6 +227,7 @@ namespace PouetRobot.StateViewer
                 textBoxSucks.Text = production.Metadata.Sucks.ToString();
                 textBoxCdcs.Text = production.Metadata.CoupDeCours.ToString();
                 textBoxAllTimeRank.Text = production.Metadata.AllTimeRank.ToString();
+                textBoxUrl.Text = production.PouetUrl;
                 textBoxDownloadUrl.Text = production.Metadata.DownloadUrl;
 
                 labelDownloadStatus.Text = $@"[{production.Download.Status.ToString()}]";
@@ -270,6 +255,7 @@ namespace PouetRobot.StateViewer
                 textBoxSucks.Text = "";
                 textBoxCdcs.Text = "";
                 textBoxAllTimeRank.Text = "";
+                textBoxUrl.Text = "";
                 textBoxDownloadUrl.Text = "";
 
                 labelDownloadStatus.Text = "";

@@ -37,6 +37,7 @@
             this.checkedListPlatforms = new System.Windows.Forms.CheckedListBox();
             this.checkedListTypes = new System.Windows.Forms.CheckedListBox();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
+            this.labelProductionsCount = new System.Windows.Forms.Label();
             this.splitContainer2 = new System.Windows.Forms.SplitContainer();
             this.treeViewPreview = new System.Windows.Forms.TreeView();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
@@ -55,7 +56,7 @@
             this.label20 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
             this.label19 = new System.Windows.Forms.Label();
-            this.textBoxDownloadUrl = new System.Windows.Forms.TextBox();
+            this.textBoxUrl = new System.Windows.Forms.TextBox();
             this.label4 = new System.Windows.Forms.Label();
             this.textBoxAllTimeRank = new System.Windows.Forms.TextBox();
             this.textBoxCdcs = new System.Windows.Forms.TextBox();
@@ -84,7 +85,8 @@
             this.textBoxTitle = new System.Windows.Forms.TextBox();
             this.label16 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
-            this.labelProductionsCount = new System.Windows.Forms.Label();
+            this.textBoxDownloadUrl = new System.Windows.Forms.TextBox();
+            this.label23 = new System.Windows.Forms.Label();
             this.flowLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -202,6 +204,15 @@
             this.splitContainer1.SplitterDistance = 269;
             this.splitContainer1.TabIndex = 3;
             // 
+            // labelProductionsCount
+            // 
+            this.labelProductionsCount.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.labelProductionsCount.Location = new System.Drawing.Point(39, 708);
+            this.labelProductionsCount.Name = "labelProductionsCount";
+            this.labelProductionsCount.Size = new System.Drawing.Size(227, 23);
+            this.labelProductionsCount.TabIndex = 1;
+            this.labelProductionsCount.TextAlign = System.Drawing.ContentAlignment.TopRight;
+            // 
             // splitContainer2
             // 
             this.splitContainer2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
@@ -237,6 +248,7 @@
             this.groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.groupBox1.Controls.Add(this.label23);
             this.groupBox1.Controls.Add(this.label22);
             this.groupBox1.Controls.Add(this.label15);
             this.groupBox1.Controls.Add(this.label14);
@@ -251,8 +263,9 @@
             this.groupBox1.Controls.Add(this.label6);
             this.groupBox1.Controls.Add(this.label20);
             this.groupBox1.Controls.Add(this.label5);
-            this.groupBox1.Controls.Add(this.label19);
             this.groupBox1.Controls.Add(this.textBoxDownloadUrl);
+            this.groupBox1.Controls.Add(this.label19);
+            this.groupBox1.Controls.Add(this.textBoxUrl);
             this.groupBox1.Controls.Add(this.label4);
             this.groupBox1.Controls.Add(this.textBoxAllTimeRank);
             this.groupBox1.Controls.Add(this.textBoxCdcs);
@@ -293,9 +306,9 @@
             this.label22.AutoSize = true;
             this.label22.Location = new System.Drawing.Point(10, 404);
             this.label22.Name = "label22";
-            this.label22.Size = new System.Drawing.Size(31, 13);
+            this.label22.Size = new System.Drawing.Size(20, 13);
             this.label22.TabIndex = 4;
-            this.label22.Text = "Dl url";
+            this.label22.Text = "Url";
             // 
             // label15
             // 
@@ -381,7 +394,7 @@
             // label21
             // 
             this.label21.AutoSize = true;
-            this.label21.Location = new System.Drawing.Point(10, 557);
+            this.label21.Location = new System.Drawing.Point(10, 582);
             this.label21.Name = "label21";
             this.label21.Size = new System.Drawing.Size(38, 13);
             this.label21.TabIndex = 4;
@@ -399,7 +412,7 @@
             // label20
             // 
             this.label20.AutoSize = true;
-            this.label20.Location = new System.Drawing.Point(10, 531);
+            this.label20.Location = new System.Drawing.Point(10, 556);
             this.label20.Name = "label20";
             this.label20.Size = new System.Drawing.Size(30, 13);
             this.label20.TabIndex = 4;
@@ -417,21 +430,21 @@
             // label19
             // 
             this.label19.AutoSize = true;
-            this.label19.Location = new System.Drawing.Point(10, 505);
+            this.label19.Location = new System.Drawing.Point(10, 530);
             this.label19.Name = "label19";
             this.label19.Size = new System.Drawing.Size(46, 13);
             this.label19.TabIndex = 4;
             this.label19.Text = "File Size";
             // 
-            // textBoxDownloadUrl
+            // textBoxUrl
             // 
-            this.textBoxDownloadUrl.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            this.textBoxUrl.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxDownloadUrl.Location = new System.Drawing.Point(72, 401);
-            this.textBoxDownloadUrl.Name = "textBoxDownloadUrl";
-            this.textBoxDownloadUrl.ReadOnly = true;
-            this.textBoxDownloadUrl.Size = new System.Drawing.Size(261, 20);
-            this.textBoxDownloadUrl.TabIndex = 2;
+            this.textBoxUrl.Location = new System.Drawing.Point(72, 401);
+            this.textBoxUrl.Name = "textBoxUrl";
+            this.textBoxUrl.ReadOnly = true;
+            this.textBoxUrl.Size = new System.Drawing.Size(261, 20);
+            this.textBoxUrl.TabIndex = 2;
             // 
             // label4
             // 
@@ -465,7 +478,7 @@
             // label18
             // 
             this.label18.AutoSize = true;
-            this.label18.Location = new System.Drawing.Point(10, 479);
+            this.label18.Location = new System.Drawing.Point(10, 504);
             this.label18.Name = "label18";
             this.label18.Size = new System.Drawing.Size(47, 13);
             this.label18.TabIndex = 4;
@@ -554,7 +567,7 @@
             // 
             this.textBoxCacheFileName.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxCacheFileName.Location = new System.Drawing.Point(72, 554);
+            this.textBoxCacheFileName.Location = new System.Drawing.Point(72, 579);
             this.textBoxCacheFileName.Name = "textBoxCacheFileName";
             this.textBoxCacheFileName.ReadOnly = true;
             this.textBoxCacheFileName.Size = new System.Drawing.Size(261, 20);
@@ -574,7 +587,7 @@
             // 
             this.textBoxFileIdentifiedByType.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxFileIdentifiedByType.Location = new System.Drawing.Point(72, 528);
+            this.textBoxFileIdentifiedByType.Location = new System.Drawing.Point(72, 553);
             this.textBoxFileIdentifiedByType.Name = "textBoxFileIdentifiedByType";
             this.textBoxFileIdentifiedByType.ReadOnly = true;
             this.textBoxFileIdentifiedByType.Size = new System.Drawing.Size(261, 20);
@@ -593,7 +606,7 @@
             // label17
             // 
             this.label17.AutoSize = true;
-            this.label17.Location = new System.Drawing.Point(10, 454);
+            this.label17.Location = new System.Drawing.Point(10, 479);
             this.label17.Name = "label17";
             this.label17.Size = new System.Drawing.Size(51, 13);
             this.label17.TabIndex = 4;
@@ -603,7 +616,7 @@
             // 
             this.textBoxFileSize.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxFileSize.Location = new System.Drawing.Point(72, 502);
+            this.textBoxFileSize.Location = new System.Drawing.Point(72, 527);
             this.textBoxFileSize.Name = "textBoxFileSize";
             this.textBoxFileSize.ReadOnly = true;
             this.textBoxFileSize.Size = new System.Drawing.Size(261, 20);
@@ -631,7 +644,7 @@
             // labelDownloadStatus
             // 
             this.labelDownloadStatus.AutoSize = true;
-            this.labelDownloadStatus.Location = new System.Drawing.Point(81, 437);
+            this.labelDownloadStatus.Location = new System.Drawing.Point(81, 462);
             this.labelDownloadStatus.Name = "labelDownloadStatus";
             this.labelDownloadStatus.Size = new System.Drawing.Size(16, 13);
             this.labelDownloadStatus.TabIndex = 3;
@@ -641,7 +654,7 @@
             // 
             this.textBoxFileType.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxFileType.Location = new System.Drawing.Point(72, 476);
+            this.textBoxFileType.Location = new System.Drawing.Point(72, 501);
             this.textBoxFileType.Name = "textBoxFileType";
             this.textBoxFileType.ReadOnly = true;
             this.textBoxFileType.Size = new System.Drawing.Size(261, 20);
@@ -660,7 +673,7 @@
             // 
             this.textBoxFileName.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxFileName.Location = new System.Drawing.Point(73, 451);
+            this.textBoxFileName.Location = new System.Drawing.Point(73, 476);
             this.textBoxFileName.Name = "textBoxFileName";
             this.textBoxFileName.ReadOnly = true;
             this.textBoxFileName.Size = new System.Drawing.Size(260, 20);
@@ -690,7 +703,7 @@
             // 
             this.label16.AutoSize = true;
             this.label16.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label16.Location = new System.Drawing.Point(7, 437);
+            this.label16.Location = new System.Drawing.Point(7, 462);
             this.label16.Name = "label16";
             this.label16.Size = new System.Drawing.Size(63, 13);
             this.label16.TabIndex = 0;
@@ -706,14 +719,24 @@
             this.label1.TabIndex = 0;
             this.label1.Text = "Production";
             // 
-            // labelProductionsCount
+            // textBoxDownloadUrl
             // 
-            this.labelProductionsCount.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.labelProductionsCount.Location = new System.Drawing.Point(39, 708);
-            this.labelProductionsCount.Name = "labelProductionsCount";
-            this.labelProductionsCount.Size = new System.Drawing.Size(227, 23);
-            this.labelProductionsCount.TabIndex = 1;
-            this.labelProductionsCount.TextAlign = System.Drawing.ContentAlignment.TopRight;
+            this.textBoxDownloadUrl.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.textBoxDownloadUrl.Location = new System.Drawing.Point(72, 429);
+            this.textBoxDownloadUrl.Name = "textBoxDownloadUrl";
+            this.textBoxDownloadUrl.ReadOnly = true;
+            this.textBoxDownloadUrl.Size = new System.Drawing.Size(261, 20);
+            this.textBoxDownloadUrl.TabIndex = 2;
+            // 
+            // label23
+            // 
+            this.label23.AutoSize = true;
+            this.label23.Location = new System.Drawing.Point(10, 432);
+            this.label23.Name = "label23";
+            this.label23.Size = new System.Drawing.Size(31, 13);
+            this.label23.TabIndex = 4;
+            this.label23.Text = "Dl url";
             // 
             // Form1
             // 
@@ -794,12 +817,14 @@
         private System.Windows.Forms.TextBox textBoxFileType;
         private System.Windows.Forms.TextBox textBoxFileName;
         private System.Windows.Forms.Label label22;
-        private System.Windows.Forms.TextBox textBoxDownloadUrl;
+        private System.Windows.Forms.TextBox textBoxUrl;
         private System.Windows.Forms.SplitContainer splitContainer2;
         private System.Windows.Forms.TreeView treeViewPreview;
         private System.Windows.Forms.CheckedListBox checkedListMetadataStatuses;
         private System.Windows.Forms.CheckedListBox checkedListDownloadStatuses;
         private System.Windows.Forms.Label labelProductionsCount;
+        private System.Windows.Forms.Label label23;
+        private System.Windows.Forms.TextBox textBoxDownloadUrl;
     }
 }
 
