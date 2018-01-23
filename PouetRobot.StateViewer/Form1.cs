@@ -8,62 +8,61 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Serilog;
-using Serilog.Core;
 
 namespace PouetRobot.StateViewer
 {
     public partial class Form1 : Form
     {
-        private Logger _logger;
-        private List<Production> _allProductions;
-        private List<string> _allGroups;
-        private List<FileType> _allFileTypes;
-        private List<FileIdentifiedByType> _allFileIdentifiedBy;
-        private List<MetadataStatus> _allMetadataStatuses;
-        private List<DownloadStatus> _allDownloadStatuses;
-        private List<string> _allParties;
-        private List<string> _allPlatforms;
-        private List<string> _allReleaseDates;
-        private List<string> _allTypes;
+        private readonly List<Production> _allProductions;
+        private readonly List<string> _allGroups;
+        //private List<FileIdentifiedByType> _allFileIdentifiedBy;
+        //private List<string> _allParties;
+        //private List<string> _allReleaseDates;
 
         public Form1()
         {
             InitializeComponent();
-            _logger = new LoggerConfiguration()
+            var logger = new LoggerConfiguration()
                 .WriteTo.ColoredConsole()
                 .WriteTo.RollingFile("PouetRobot.StateViewer{date}.log")
                 .CreateLogger();
 
-            _logger.Information("Begin work!");
+            logger.Information("Begin work!");
 
             var productionsPath = @"D:\Temp\PouetDownload\";
             var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
             var productionsFileName = $@"Productions.json";
-            var robot = new Robot(null, productionsPath, productionsFileName, webCachePath, _logger);
+            var robot = new Robot(null, productionsPath, productionsFileName, webCachePath, logger);
 
             robot.LoadProductions(IndexScanMode.DisableScan);
 
             _allProductions = robot.Productions.Select(x => x.Value).ToList();
 
-            _allMetadataStatuses = _allProductions.Select(x => x.Metadata.Status).DistinctBy(x => x).OrderBy(x => x).ToList();
+            var allMetadataStatuses = _allProductions.Select(x => x.Metadata.Status).DistinctBy(x => x).OrderBy(x => x).ToList();
             _allGroups = _allProductions.SelectMany(x => x.Metadata.Groups).DistinctBy(x => x).OrderBy(x => x).ToList();
-            _allParties = _allProductions.Select(x=> x.Metadata.Party).DistinctBy(x => x).OrderBy(x => x).ToList();
+            //_allParties = _allProductions.Select(x=> x.Metadata.Party).DistinctBy(x => x).OrderBy(x => x).ToList();
 
-            _allPlatforms = _allProductions.SelectMany(x => x.Metadata.Platforms).DistinctBy(x => x).OrderBy(x => x).ToList();
-            _allReleaseDates = _allProductions.Select(x=> x.Metadata.ReleaseDate).DistinctBy(x => x).OrderBy(x => x).ToList();
-            _allTypes = _allProductions.SelectMany(x=> x.Metadata.Types).DistinctBy(x => x).OrderBy(x => x).ToList();
+            var allPlatforms = _allProductions.SelectMany(x => x.Metadata.Platforms).DistinctBy(x => x).OrderBy(x => x).ToList();
+            //_allReleaseDates = _allProductions.Select(x=> x.Metadata.ReleaseDate).DistinctBy(x => x).OrderBy(x => x).ToList();
+            var allTypes = _allProductions.SelectMany(x=> x.Metadata.Types).DistinctBy(x => x).OrderBy(x => x).ToList();
 
-            _allDownloadStatuses = _allProductions.Select(x => x.Download.Status).DistinctBy(x => x).OrderBy(x => x).ToList();
-            _allFileTypes = _allProductions.Select(x => x.Download.FileType).DistinctBy(x => x).OrderBy(x => x).ToList();
-            _allFileIdentifiedBy = _allProductions.Select(x => x.Download.FileIdentifiedByType).DistinctBy(x => x).OrderBy(x => x).ToList();
+            var allDownloadStatuses = _allProductions.Select(x => x.Download.Status).DistinctBy(x => x).OrderBy(x => x).ToList();
+            var allFileTypes = _allProductions.Select(x => x.Download.FileType).DistinctBy(x => x).OrderBy(x => x).ToList();
+            //_allFileIdentifiedBy = _allProductions.Select(x => x.Download.FileIdentifiedByType).DistinctBy(x => x).OrderBy(x => x).ToList();
 
-            _allFileTypes.ForEach(x => checkedListFileTypes.Items.Add(x) );
+            allMetadataStatuses.ForEach(x => checkedListMetadataStatuses.Items.Add(x));
+            AdjustCheckedListHeight(checkedListMetadataStatuses);
+
+            allDownloadStatuses.ForEach(x => checkedListDownloadStatuses.Items.Add(x));
+            AdjustCheckedListHeight(checkedListDownloadStatuses);
+
+            allFileTypes.ForEach(x => checkedListFileTypes.Items.Add(x) );
             AdjustCheckedListHeight(checkedListFileTypes);
 
-            _allPlatforms.Where(x => new List<string>{"Amiga AGA", "Amiga OCS/ECS", "Amiga PPC/RTG" }.Contains(x)).ToList().ForEach(x => checkedListPlatforms.Items.Add(x));
+            allPlatforms.Where(x => new List<string>{"Amiga AGA", "Amiga OCS/ECS", "Amiga PPC/RTG" }.Contains(x)).ToList().ForEach(x => checkedListPlatforms.Items.Add(x));
             AdjustCheckedListHeight(checkedListPlatforms);
 
-            _allTypes.ForEach(x => checkedListTypes.Items.Add(x));
+            allTypes.ForEach(x => checkedListTypes.Items.Add(x));
             AdjustCheckedListHeight(checkedListTypes);
 
             //var testREbels = _allProductions.Where(x => x.Group == "Rebels");
@@ -89,11 +88,15 @@ namespace PouetRobot.StateViewer
             var checkedFileTypes = GetCheckedListItemsAsStrings(checkedListFileTypes.CheckedItems);
             var checkedPlatforms = GetCheckedListItemsAsStrings(checkedListPlatforms.CheckedItems);
             var checkedTypes = GetCheckedListItemsAsStrings(checkedListTypes.CheckedItems);
+            var checkedMetadataStatuses = GetCheckedListItemsAsStrings(checkedListMetadataStatuses.CheckedItems);
+            var checkedDownloadStatuses = GetCheckedListItemsAsStrings(checkedListDownloadStatuses.CheckedItems);
                    
             var filteredProductions = _allProductions
                 .FilterFileTypes(checkedFileTypes)
                 .FilterPlatforms(checkedPlatforms)
                 .FilterTypes(checkedTypes)
+                .FilterMetadataStatuses(checkedMetadataStatuses)
+                .FilterDownloadStatuses(checkedDownloadStatuses)
                 .OrderBy(x => x.Title)
                 .ToList()
                 ;

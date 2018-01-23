@@ -946,7 +946,7 @@ namespace PouetRobot
         NoRescan
     }
 
-    public static class ExtenExtensions
+    public static class ProductionListExtensions
     {
         public static IList<Production> FilterFileTypes(this IList<Production> productions, IList<string> filter)
         {
@@ -971,6 +971,24 @@ namespace PouetRobot
             return filter.Count > 0
                 ? productions
                     .Where(x => x.Metadata.Types.Any(filter.Contains))
+                    .ToList()
+                : productions;
+        }
+
+        public static IList<Production> FilterMetadataStatuses(this IList<Production> productions, IList<string> filter)
+        {
+            return filter.Count > 0
+                ? productions
+                    .Where(x => filter.Contains(x.Metadata.Status.ToString()))
+                    .ToList()
+                : productions;
+        }
+
+        public static IList<Production> FilterDownloadStatuses(this IList<Production> productions, IList<string> filter)
+        {
+            return filter.Count > 0
+                ? productions
+                    .Where(x => filter.Contains(x.Download.Status.ToString()))
                     .ToList()
                 : productions;
         }

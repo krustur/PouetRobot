@@ -82,6 +82,8 @@
             this.label1 = new System.Windows.Forms.Label();
             this.splitContainer2 = new System.Windows.Forms.SplitContainer();
             this.treeViewPreview = new System.Windows.Forms.TreeView();
+            this.checkedListMetadataStatuses = new System.Windows.Forms.CheckedListBox();
+            this.checkedListDownloadStatuses = new System.Windows.Forms.CheckedListBox();
             this.flowLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -121,6 +123,8 @@
             this.flowLayoutPanel1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left)));
             this.flowLayoutPanel1.AutoScroll = true;
+            this.flowLayoutPanel1.Controls.Add(this.checkedListMetadataStatuses);
+            this.flowLayoutPanel1.Controls.Add(this.checkedListDownloadStatuses);
             this.flowLayoutPanel1.Controls.Add(this.checkedListFileTypes);
             this.flowLayoutPanel1.Controls.Add(this.checkedListPlatforms);
             this.flowLayoutPanel1.Controls.Add(this.checkedListTypes);
@@ -135,7 +139,7 @@
             // 
             this.checkedListFileTypes.CheckOnClick = true;
             this.checkedListFileTypes.FormattingEnabled = true;
-            this.checkedListFileTypes.Location = new System.Drawing.Point(3, 3);
+            this.checkedListFileTypes.Location = new System.Drawing.Point(3, 207);
             this.checkedListFileTypes.Name = "checkedListFileTypes";
             this.checkedListFileTypes.Size = new System.Drawing.Size(188, 79);
             this.checkedListFileTypes.TabIndex = 0;
@@ -146,7 +150,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.checkedListPlatforms.CheckOnClick = true;
             this.checkedListPlatforms.FormattingEnabled = true;
-            this.checkedListPlatforms.Location = new System.Drawing.Point(3, 88);
+            this.checkedListPlatforms.Location = new System.Drawing.Point(3, 292);
             this.checkedListPlatforms.Name = "checkedListPlatforms";
             this.checkedListPlatforms.Size = new System.Drawing.Size(188, 94);
             this.checkedListPlatforms.TabIndex = 1;
@@ -156,7 +160,7 @@
             this.checkedListTypes.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.checkedListTypes.FormattingEnabled = true;
-            this.checkedListTypes.Location = new System.Drawing.Point(3, 188);
+            this.checkedListTypes.Location = new System.Drawing.Point(3, 392);
             this.checkedListTypes.Name = "checkedListTypes";
             this.checkedListTypes.Size = new System.Drawing.Size(188, 94);
             this.checkedListTypes.TabIndex = 0;
@@ -684,6 +688,22 @@
             this.treeViewPreview.TabIndex = 0;
             this.treeViewPreview.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeView1_AfterSelect);
             // 
+            // checkedListMetadataStatuses
+            // 
+            this.checkedListMetadataStatuses.FormattingEnabled = true;
+            this.checkedListMetadataStatuses.Location = new System.Drawing.Point(3, 3);
+            this.checkedListMetadataStatuses.Name = "checkedListMetadataStatuses";
+            this.checkedListMetadataStatuses.Size = new System.Drawing.Size(188, 94);
+            this.checkedListMetadataStatuses.TabIndex = 2;
+            // 
+            // checkedListDownloadStatuses
+            // 
+            this.checkedListDownloadStatuses.FormattingEnabled = true;
+            this.checkedListDownloadStatuses.Location = new System.Drawing.Point(3, 105);
+            this.checkedListDownloadStatuses.Name = "checkedListDownloadStatuses";
+            this.checkedListDownloadStatuses.Size = new System.Drawing.Size(188, 94);
+            this.checkedListDownloadStatuses.TabIndex = 3;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -766,6 +786,8 @@
         private System.Windows.Forms.TextBox textBoxDownloadUrl;
         private System.Windows.Forms.SplitContainer splitContainer2;
         private System.Windows.Forms.TreeView treeViewPreview;
+        private System.Windows.Forms.CheckedListBox checkedListMetadataStatuses;
+        private System.Windows.Forms.CheckedListBox checkedListDownloadStatuses;
     }
 }
 
