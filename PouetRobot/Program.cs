@@ -945,6 +945,35 @@ namespace PouetRobot
         Rescan,
         NoRescan
     }
-    
+
+    public static class ExtenExtensions
+    {
+        public static IList<Production> FilterFileTypes(this IList<Production> productions, IList<string> filter)
+        {
+            return filter.Count > 0
+                ? productions
+                    .Where(x => filter.Contains(x.Download.FileType.ToString()))
+                    .ToList()
+                : productions;
+        }
+
+        public static IList<Production> FilterPlatforms(this IList<Production> productions, IList<string> filter)
+        {
+            return filter.Count > 0
+                ? productions
+                    .Where(x => x.Metadata.Platforms.Any(filter.Contains))
+                    .ToList()
+                : productions;
+        }
+
+        public static IList<Production> FilterTypes(this IList<Production> productions, IList<string> filter)
+        {
+            return filter.Count > 0
+                ? productions
+                    .Where(x => x.Metadata.Types.Any(filter.Contains))
+                    .ToList()
+                : productions;
+        }
+    }
 
 }

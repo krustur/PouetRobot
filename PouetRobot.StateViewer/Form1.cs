@@ -60,11 +60,11 @@ namespace PouetRobot.StateViewer
             _allFileTypes.ForEach(x => checkedListFileTypes.Items.Add(x) );
             AdjustCheckedListHeight(checkedListFileTypes);
 
-            _allPlatforms.ForEach(x => checkedListPlatforms.Items.Add(x));
+            _allPlatforms.Where(x => new List<string>{"Amiga AGA", "Amiga OCS/ECS", "Amiga PPC/RTG" }.Contains(x)).ToList().ForEach(x => checkedListPlatforms.Items.Add(x));
             AdjustCheckedListHeight(checkedListPlatforms);
 
-            _allTypes.ForEach(x => checkedListType.Items.Add(x));
-            AdjustCheckedListHeight(checkedListType);
+            _allTypes.ForEach(x => checkedListTypes.Items.Add(x));
+            AdjustCheckedListHeight(checkedListTypes);
 
             //var testREbels = _allProductions.Where(x => x.Group == "Rebels");
 
@@ -80,20 +80,41 @@ namespace PouetRobot.StateViewer
         private void LoadTreeView()
         {
             // Suppress repainting the TreeView until all the objects have been created.
-            treeView1.BeginUpdate();
+            treeViewProductions.BeginUpdate();
 
             // Clear the TreeView each time the method is called.
-            treeView1.Nodes.Clear();
+            treeViewProductions.Nodes.Clear();
 
             // Add a root TreeNode for each Customer object in the ArrayList.
-            var checkedFileTypes = checkedListFileTypes.CheckedItems;
-            
+            var checkedFileTypes = GetCheckedListItemsAsStrings(checkedListFileTypes.CheckedItems);
+            var checkedPlatforms = GetCheckedListItemsAsStrings(checkedListPlatforms.CheckedItems);
+            var checkedTypes = GetCheckedListItemsAsStrings(checkedListTypes.CheckedItems);
+                   
+            var filteredProductions = _allProductions
+                .FilterFileTypes(checkedFileTypes)
+                .FilterPlatforms(checkedPlatforms)
+                .FilterTypes(checkedTypes)
+                .OrderBy(x => x.Title)
+                .ToList()
+                ;
+            //if (checkedFileTypes.Count > 0)
+            //{
+            //    filteredProductions = filteredProductions.Where(x => checkedFileTypes.Contains(x.Download.FileType.ToString())).ToList();
+            //}
+            //if (checkedPlatforms.Count > 0)
+            //{
+            //    filteredProductions = filteredProductions.Where(x => x.Metadata.Platforms.Any(y => checkedPlatforms.Contains(y))).ToList();
+            //}
+            //if (checkedTypes.Count > 0)
+            //{
+            //    filteredProductions = filteredProductions.Where(x => x.Metadata.Types.Any(y => checkedTypes.Contains(y))).ToList();
+            //}
+            //filteredProductions = filteredProductions.OrderBy(x => x.ToString()).ToList();
+
             foreach (var group in _allGroups)
             {
-                var productions = _allProductions
+                var productions = filteredProductions
                     .Where(x => x.Metadata.Groups.Contains(group))
-                    .Where(x => checkedFileTypes.Count == 0 || checkedFileTypes.Contains(x.Download.FileType))
-                    .OrderBy(x => x.ToString())
                     .ToList();
                 if (productions.Count > 0)
                 {
@@ -110,7 +131,7 @@ namespace PouetRobot.StateViewer
                         groupNode.Nodes.Add(prodNode);
                     }
 
-                    treeView1.Nodes.Add(groupNode);
+                    treeViewProductions.Nodes.Add(groupNode);
                 }
             }
 
@@ -118,7 +139,18 @@ namespace PouetRobot.StateViewer
             Cursor.Current = Cursors.Default;
 
             // Begin repainting the TreeView.
-            treeView1.EndUpdate();
+            treeViewProductions.EndUpdate();
+        }
+
+        private IList<string> GetCheckedListItemsAsStrings(CheckedListBox.CheckedItemCollection checkedItems)
+        {
+            var result = new List<string>();
+            foreach (var checkedItem in checkedItems)
+            {
+                result.Add(checkedItem.ToString());
+            }
+
+            return result;
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -152,6 +184,7 @@ namespace PouetRobot.StateViewer
                 textBoxSucks.Text = production.Metadata.Sucks.ToString();
                 textBoxCdcs.Text = production.Metadata.CoupDeCours.ToString();
                 textBoxAllTimeRank.Text = production.Metadata.AllTimeRank.ToString();
+                textBoxDownloadUrl.Text = production.Metadata.DownloadUrl;
 
                 labelDownloadStatus.Text = $@"[{production.Download.Status.ToString()}]";
                 textBoxFileName.Text = production.Download.FileName;
