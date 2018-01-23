@@ -753,21 +753,59 @@ namespace PouetRobot
 
             //folderLayout.Add(new File("en fil.exe"));
 
-            folderStructure.Add(new Folder("Groups", GetGroupsFolderStructure()));
+            var productions = Productions.Select(x => x.Value)
+                    .ToList()
+                    .FilterDownloadStatus(DownloadStatus.Ok)
+                    .FilterMetadataStatus(MetadataStatus.Ok)
+                ;
+
+            var groupProductions = productions.FilterExcludeTypes(new List<string>
+            {
+                "artpack",
+                "bbstro",
+                "cracktro",
+                "demotool",
+                "diskmag",
+                "game", 
+                "invitation", 
+                "liveact", 
+                "musicdisk", 
+                "procedural graphics", 
+                "report", 
+                "slideshow", 
+                "votedisk", 
+                "wild",
+            });
+            folderStructure.Add(new Folder("Groups", GetProductionsFolderStructure(groupProductions, includeTypes: true)));//demo, demopack, dentro, fastdemo, intro
+            folderStructure.Add(new Folder("Artpacks", GetProductionsFolderStructure(productions.FilterType("artpack"), includeTypes: false)));
+            folderStructure.Add(new Folder("BBStros", GetProductionsFolderStructure(productions.FilterType("bbstro"), includeTypes: false)));
+            folderStructure.Add(new Folder("Cracktros", GetProductionsFolderStructure(productions.FilterType("cracktro"), includeTypes: false)));
+            folderStructure.Add(new Folder("Demotools", GetProductionsFolderStructure(productions.FilterType("demotool"), includeTypes: false)));
+            folderStructure.Add(new Folder("Diskmags", GetProductionsFolderStructure(productions.FilterType("diskmag"), includeTypes: false)));
+            folderStructure.Add(new Folder("Games", GetProductionsFolderStructure(productions.FilterType("game"), includeTypes: false)));
+            folderStructure.Add(new Folder("Invitations", GetProductionsFolderStructure(productions.FilterType("invitation"), includeTypes: false)));
+            folderStructure.Add(new Folder("Liveacts", GetProductionsFolderStructure(productions.FilterType("liveact"), includeTypes: false)));
+            folderStructure.Add(new Folder("Music disks", GetProductionsFolderStructure(productions.FilterType("musicdisk"), includeTypes: false)));
+            folderStructure.Add(new Folder("Procedural graphics", GetProductionsFolderStructure(productions.FilterType("procedural graphics"), includeTypes: false)));
+            folderStructure.Add(new Folder("Reports", GetProductionsFolderStructure(productions.FilterType("report"), includeTypes: false)));
+            folderStructure.Add(new Folder("Slideshows", GetProductionsFolderStructure(productions.FilterType("slideshow"), includeTypes: false)));
+            folderStructure.Add(new Folder("Votedisks", GetProductionsFolderStructure(productions.FilterType("votedisk"), includeTypes: false)));
+            folderStructure.Add(new Folder("Wild", GetProductionsFolderStructure(productions.FilterType("wild"), includeTypes: false)));
+            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));
+            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));artpack
+            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));bbstro
+            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));cracktro
+            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));demotool
+            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));diskmag
+            //folderStructure.Add(new Folder("Artpacks", GetArtpacksFolderStructure()));game
 
             return folderStructure;
         }
 
-        private List<FileBase> GetGroupsFolderStructure()
+        private List<FileBase> GetProductionsFolderStructure(IList<Production> productions, bool includeTypes)
         {
-            var productions = Productions.Select(x => x.Value)
-                .ToList()
-                .FilterDownloadStatus(DownloadStatus.Ok)
-                .FilterMetadataStatus(MetadataStatus.Ok)
-                .FilterPlatforms(new List<string> {"Amiga AGA"})
-                ;
-
             var folderStructure = new List<FileBase>();
+
             var groups = productions.GetGroups();
             foreach (var group in groups)
             {
@@ -776,7 +814,7 @@ namespace PouetRobot
                 var groupFolders = new List<FileBase>();
                 foreach (var groupProduction in groupProductions)
                 {
-                    groupFolders.Add(new Folder(groupProduction.GetFolderName(includeGroups: false, includeTypes: true)));
+                    groupFolders.Add(new Folder(groupProduction.GetFolderName(includeGroups: false, includeTypes: includeTypes)));
                 }
                 folderStructure.Add(new Folder(group, groupFolders));
             }
@@ -1047,11 +1085,25 @@ namespace PouetRobot
                 : productions;
         }
 
+        public static IList<Production> FilterType(this IList<Production> productions, string filter)
+        {
+            return FilterTypes(productions, new List<string> {filter});
+        }
+
         public static IList<Production> FilterTypes(this IList<Production> productions, IList<string> filter)
         {
             return filter.Count > 0
                 ? productions
                     .Where(x => x.Metadata.Types.Any(filter.Contains))
+                    .ToList()
+                : productions;
+        }
+
+        public static IList<Production> FilterExcludeTypes(this IList<Production> productions, IList<string> filter)
+        {
+            return filter.Count > 0
+                ? productions
+                    .Where(x => x.Metadata.Types.Any(y => filter.Contains(y) == false))
                     .ToList()
                 : productions;
         }
