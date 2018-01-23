@@ -13,8 +13,10 @@ namespace PouetRobot.StateViewer
 {
     public partial class Form1 : Form
     {
-        private readonly List<Production> _allProductions;
-        private readonly List<string> _allGroups;
+        private readonly IList<Production> _allProductions;
+        private readonly IList<string> _allGroups;
+
+        private readonly Robot _robot;
         //private List<FileIdentifiedByType> _allFileIdentifiedBy;
         //private List<string> _allParties;
         //private List<string> _allReleaseDates;
@@ -32,14 +34,15 @@ namespace PouetRobot.StateViewer
             var productionsPath = @"D:\Temp\PouetDownload\";
             var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
             var productionsFileName = $@"Productions.json";
-            var robot = new Robot(null, productionsPath, productionsFileName, webCachePath, logger);
+            _robot = new Robot(null, productionsPath, productionsFileName, webCachePath, logger);
 
-            robot.LoadProductions(IndexScanMode.DisableScan);
+            _robot.LoadProductions(IndexScanMode.DisableScan);
 
-            _allProductions = robot.Productions.Select(x => x.Value).ToList();
+            _allProductions = _robot.Productions.Select(x => x.Value).ToList();
 
             var allMetadataStatuses = _allProductions.Select(x => x.Metadata.Status).DistinctBy(x => x).OrderBy(x => x).ToList();
-            _allGroups = _allProductions.SelectMany(x => x.Metadata.Groups).DistinctBy(x => x).OrderBy(x => x).ToList();
+            _allGroups = _allProductions.GetGroups();
+
             //_allParties = _allProductions.Select(x=> x.Metadata.Party).DistinctBy(x => x).OrderBy(x => x).ToList();
 
             var allPlatforms = _allProductions.SelectMany(x => x.Metadata.Platforms).DistinctBy(x => x).OrderBy(x => x).ToList();
@@ -67,7 +70,8 @@ namespace PouetRobot.StateViewer
 
             //var testREbels = _allProductions.Where(x => x.Group == "Rebels");
 
-            LoadTreeView();
+            LoadPreeViewTreeView();
+            LoadProductionsTreeView();
         }
 
         private void AdjustCheckedListHeight(CheckedListBox checkedListBox)
@@ -76,7 +80,7 @@ namespace PouetRobot.StateViewer
             checkedListBox.Height = h + checkedListBox.Height - checkedListBox.ClientSize.Height;
         }
 
-        private void LoadTreeView()
+        private void LoadProductionsTreeView()
         {
             // Suppress repainting the TreeView until all the objects have been created.
             treeViewProductions.BeginUpdate();
@@ -151,6 +155,52 @@ namespace PouetRobot.StateViewer
             treeViewProductions.EndUpdate();
         }
 
+        private void LoadPreeViewTreeView()
+        {
+            // Suppress repainting the TreeView until all the objects have been created.
+            treeViewPreview.BeginUpdate();
+
+            // Clear the TreeView each time the method is called.
+            treeViewPreview.Nodes.Clear();
+
+
+            var masterFolderLayout = _robot.GetMasterFolderStructure();
+
+            var nodes = CreateTreeViewNodes(masterFolderLayout);
+            foreach (var treeNode in nodes)
+            {
+                treeViewPreview.Nodes.Add(treeNode);
+            }
+            //        treeViewPreview.Nodes.Add(groupNode);
+          
+            //labelProductionsCount.Text = $@"{filteredProductions.Count} ({totalCount})/{_allProductions.Count}";
+
+            // Reset the cursor to the default for all controls.
+            Cursor.Current = Cursors.Default;
+
+            // Begin repainting the TreeView.
+            treeViewPreview.EndUpdate();
+        }
+
+        private IList<TreeNode> CreateTreeViewNodes(IList<FileBase> folderLayout)
+        {
+            var nodes = new List<TreeNode>();
+            foreach (var folder in folderLayout.OfType<Folder>())
+            {
+                var children = CreateTreeViewNodes(folder.Childrens);
+                var folderNode = new TreeNode(folder.Name, children.ToArray());
+                nodes.Add(folderNode);
+            }
+
+            foreach (var file in folderLayout.OfType<File>())
+            {
+                var fileNode = new TreeNode(file.Name);
+                nodes.Add(fileNode);
+            }
+
+            return nodes;
+        }
+
         private IList<string> GetCheckedListItemsAsStrings(CheckedListBox.CheckedItemCollection checkedItems)
         {
             var result = new List<string>();
@@ -169,7 +219,7 @@ namespace PouetRobot.StateViewer
 
         private void buttonUpdate_Click(object sender, EventArgs e)
         {
-            LoadTreeView();
+            LoadProductionsTreeView();
         }
 
         private void treeView1_AfterSelect(object sender, TreeViewEventArgs e)

@@ -202,9 +202,9 @@ namespace PouetRobot
         private IDictionary<int, Production> LoadProductions()
         {
             var productionsFileName = GetProductionsFileName();
-            if (File.Exists(productionsFileName))
+            if (System.IO.File.Exists(productionsFileName))
             {
-                var productions = JsonConvert.DeserializeObject<IDictionary<int, Production>>(File.ReadAllText((productionsFileName)));
+                var productions = JsonConvert.DeserializeObject<IDictionary<int, Production>>(System.IO.File.ReadAllText((productionsFileName)));
                 return productions;
             }
 
@@ -217,7 +217,7 @@ namespace PouetRobot
 
             var productionsFileName = GetProductionsFileName();
             var productionsJson = JsonConvert.SerializeObject(Productions, Formatting.Indented, new StringEnumConverter());
-            File.WriteAllText(productionsFileName, productionsJson);
+            System.IO.File.WriteAllText(productionsFileName, productionsJson);
         }
 
         private string GetProductionsFileName()
@@ -673,10 +673,10 @@ namespace PouetRobot
             var pageUri = new Uri(pageUrl);
             var fileName = pageUri.Segments.Last();
 
-            if (File.Exists(cacheFileFullPath))
+            if (System.IO.File.Exists(cacheFileFullPath))
             {
                 _logger.Information("Using cached file url [{CacheFileName}] {PageUrl}: ", cacheFileName, pageUrl);
-                return (new HttpResponseMessage(HttpStatusCode.OK), fileName, cacheFileName, File.ReadAllBytes(cacheFileFullPath));
+                return (new HttpResponseMessage(HttpStatusCode.OK), fileName, cacheFileName, System.IO.File.ReadAllBytes(cacheFileFullPath));
             }
 
             _logger.Information("GET url {PageUrl}: ", pageUrl);
@@ -686,7 +686,7 @@ namespace PouetRobot
                 var request = new WebClient();
 
                 var content = request.DownloadData(pageUri.ToString());
-                File.WriteAllBytes(cacheFileFullPath, content);
+                System.IO.File.WriteAllBytes(cacheFileFullPath, content);
                 return (new HttpResponseMessage(HttpStatusCode.OK), fileName, cacheFileName, content);
             }
             else
@@ -701,7 +701,7 @@ namespace PouetRobot
 
                 if (responseMessage.StatusCode == HttpStatusCode.OK)
                 {
-                    File.WriteAllBytes(cacheFileFullPath, content);
+                    System.IO.File.WriteAllBytes(cacheFileFullPath, content);
                 }
 
                 return (responseMessage, fileName, cacheFileName, content);
@@ -745,6 +745,79 @@ namespace PouetRobot
         private string ByteArrayToString(byte[] byteArray)
         {
             return System.Text.Encoding.UTF8.GetString(byteArray);
+        }
+
+        public IList<FileBase> GetMasterFolderStructure()
+        {
+            var folderStructure = new List<FileBase>();
+
+            //folderLayout.Add(new File("en fil.exe"));
+
+            folderStructure.Add(new Folder("Groups", GetGroupsFolderStructure()));
+
+            return folderStructure;
+        }
+
+        private List<FileBase> GetGroupsFolderStructure()
+        {
+            var productions = Productions.Select(x => x.Value)
+                .ToList()
+                .FilterDownloadStatus(DownloadStatus.Ok)
+                .FilterMetadataStatus(MetadataStatus.Ok)
+                .FilterPlatforms(new List<string> {"Amiga AGA"})
+                ;
+
+            var folderStructure = new List<FileBase>();
+            var groups = productions.GetGroups();
+            foreach (var group in groups)
+            {
+                var groupProductions = productions.Where(x => x.Metadata.Groups.Contains(group));
+
+                var groupFolders = new List<FileBase>();
+                foreach (var groupProduction in groupProductions)
+                {
+                    groupFolders.Add(new Folder(groupProduction.GetFolderName(includeGroups: false, includeTypes: true)));
+                }
+                folderStructure.Add(new Folder(group, groupFolders));
+            }
+
+            return folderStructure;
+        }
+    }
+
+    public class FileBase
+    {
+        public string Name { get; set; }
+
+        public override string ToString()
+        {
+            return $"{Name}";
+        }
+    }
+
+    public class Folder : FileBase
+    {
+        public Folder(string folderName, IList<FileBase> children)
+        {
+            Name = folderName;
+            Childrens = children;
+        }
+
+        public Folder(string folderName)
+        {
+            Name = folderName;
+            Childrens = new List<FileBase>();
+
+        }
+
+        public IList<FileBase> Childrens { get; set; }
+    }
+
+    public class File : FileBase
+    {
+        public File(string fileName)
+        {
+            Name = fileName;
         }
     }
 
@@ -810,7 +883,15 @@ namespace PouetRobot
 
         public override string ToString()
         {
-            return $"{Metadata.Groups.ToSingleString()} / {Title} [{Metadata.Types.ToSingleString()} - {Metadata.Platforms.ToSingleString()}]";
+            return GetFolderName(includeGroups: true, includeTypes: true);
+        }
+
+        public string GetFolderName(bool includeGroups, bool includeTypes)
+        {
+            var groups = includeGroups ? $@" [{Metadata.Groups.ToSingleString()}]" : string.Empty;
+            var types = includeTypes ? $@"  [{Metadata.Types.ToSingleString()}]" : string.Empty;
+
+            return $"{Title}{groups}{types} [{Metadata.Platforms.ToSingleString()}]";
         }
     }
 
@@ -859,14 +940,14 @@ namespace PouetRobot
 
     public static class StringListExtensions
     {
-        public static string ToSingleString(this IList<string> strings)
+        public static string ToSingleString(this IList<string> strings, string separator = "-")
         {
             if (strings.Count == 0)
             {
                 return string.Empty;
             }
 
-            var result = strings.Aggregate((i, j) => i + "," + j);
+            var result = strings.Aggregate((i, j) => i + separator + j);
             return result;
         }
     }
@@ -975,6 +1056,11 @@ namespace PouetRobot
                 : productions;
         }
 
+        public static IList<Production> FilterMetadataStatus(this IList<Production> productions, MetadataStatus metadataStatus)
+        {
+            return FilterMetadataStatuses(productions, new List<string> { metadataStatus.ToString() });
+        }
+
         public static IList<Production> FilterMetadataStatuses(this IList<Production> productions, IList<string> filter)
         {
             return filter.Count > 0
@@ -984,6 +1070,11 @@ namespace PouetRobot
                 : productions;
         }
 
+        public static IList<Production> FilterDownloadStatus(this IList<Production> productions, DownloadStatus downloadStatus)
+        {
+            return FilterDownloadStatuses(productions, new List<string> {downloadStatus.ToString()});
+        }
+
         public static IList<Production> FilterDownloadStatuses(this IList<Production> productions, IList<string> filter)
         {
             return filter.Count > 0
@@ -991,6 +1082,11 @@ namespace PouetRobot
                     .Where(x => filter.Contains(x.Download.Status.ToString()))
                     .ToList()
                 : productions;
+        }
+
+        public static IList<string> GetGroups(this IList<Production> productions)
+        {
+            return productions.SelectMany(x => x.Metadata.Groups).DistinctBy(x => x).OrderBy(x => x).ToList();
         }
     }
 
