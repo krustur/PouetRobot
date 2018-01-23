@@ -114,11 +114,15 @@ namespace PouetRobot.StateViewer
             //}
             //filteredProductions = filteredProductions.OrderBy(x => x.ToString()).ToList();
 
+            var totalCount = 0;
             foreach (var group in _allGroups)
             {
                 var productions = filteredProductions
                     .Where(x => x.Metadata.Groups.Contains(group))
                     .ToList();
+
+                totalCount += productions.Count;
+
                 if (productions.Count > 0)
                 {
                     var groupNode = new TreeNode(group);
@@ -137,6 +141,8 @@ namespace PouetRobot.StateViewer
                     treeViewProductions.Nodes.Add(groupNode);
                 }
             }
+
+            labelProductionsCount.Text = $@"{filteredProductions.Count} ({totalCount})/{_allProductions.Count}";
 
             // Reset the cursor to the default for all controls.
             Cursor.Current = Cursors.Default;
@@ -196,6 +202,32 @@ namespace PouetRobot.StateViewer
                 textBoxFileIdentifiedByType.Text = production.Download.FileIdentifiedByType.ToString();
                 textBoxCacheFileName.Text = production.Download.CacheFileName;
 
+            }
+            else
+            {
+                labelMetadataStatus.Text = "";
+                textBoxTitle.Text = "";
+                textBoxGroups.Text = "";
+                textBoxTypes.Text = "";
+                textBoxPlatforms.Text = "";
+                textBoxParty.Text = "";
+                textBoxPartyYear.Text = "";
+                textBoxPartyCompo.Text = "";
+                textBoxPartyRank.Text = "";
+                textBoxReleaseDate.Text = "";
+                textBoxRulez.Text = "";
+                textBoxItsOk.Text = "";
+                textBoxSucks.Text = "";
+                textBoxCdcs.Text = "";
+                textBoxAllTimeRank.Text = "";
+                textBoxDownloadUrl.Text = "";
+
+                labelDownloadStatus.Text = "";
+                textBoxFileName.Text = "";
+                textBoxFileType.Text = "";
+                textBoxFileSize.Text = "";
+                textBoxFileIdentifiedByType.Text = "";
+                textBoxCacheFileName.Text = "";
             }
         }
     }

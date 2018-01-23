@@ -31,10 +31,14 @@
             this.treeViewProductions = new System.Windows.Forms.TreeView();
             this.buttonUpdate = new System.Windows.Forms.Button();
             this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
+            this.checkedListMetadataStatuses = new System.Windows.Forms.CheckedListBox();
+            this.checkedListDownloadStatuses = new System.Windows.Forms.CheckedListBox();
             this.checkedListFileTypes = new System.Windows.Forms.CheckedListBox();
             this.checkedListPlatforms = new System.Windows.Forms.CheckedListBox();
             this.checkedListTypes = new System.Windows.Forms.CheckedListBox();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
+            this.splitContainer2 = new System.Windows.Forms.SplitContainer();
+            this.treeViewPreview = new System.Windows.Forms.TreeView();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.label22 = new System.Windows.Forms.Label();
             this.label15 = new System.Windows.Forms.Label();
@@ -80,20 +84,17 @@
             this.textBoxTitle = new System.Windows.Forms.TextBox();
             this.label16 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
-            this.splitContainer2 = new System.Windows.Forms.SplitContainer();
-            this.treeViewPreview = new System.Windows.Forms.TreeView();
-            this.checkedListMetadataStatuses = new System.Windows.Forms.CheckedListBox();
-            this.checkedListDownloadStatuses = new System.Windows.Forms.CheckedListBox();
+            this.labelProductionsCount = new System.Windows.Forms.Label();
             this.flowLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
             this.splitContainer1.SuspendLayout();
-            this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer2)).BeginInit();
             this.splitContainer2.Panel1.SuspendLayout();
             this.splitContainer2.Panel2.SuspendLayout();
             this.splitContainer2.SuspendLayout();
+            this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
             // treeViewProductions
@@ -103,7 +104,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.treeViewProductions.Location = new System.Drawing.Point(0, 0);
             this.treeViewProductions.Name = "treeViewProductions";
-            this.treeViewProductions.Size = new System.Drawing.Size(270, 731);
+            this.treeViewProductions.Size = new System.Drawing.Size(270, 705);
             this.treeViewProductions.TabIndex = 0;
             this.treeViewProductions.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeView1_AfterSelect);
             // 
@@ -135,11 +136,27 @@
             this.flowLayoutPanel1.TabIndex = 1;
             this.flowLayoutPanel1.WrapContents = false;
             // 
+            // checkedListMetadataStatuses
+            // 
+            this.checkedListMetadataStatuses.FormattingEnabled = true;
+            this.checkedListMetadataStatuses.Location = new System.Drawing.Point(3, 3);
+            this.checkedListMetadataStatuses.Name = "checkedListMetadataStatuses";
+            this.checkedListMetadataStatuses.Size = new System.Drawing.Size(188, 94);
+            this.checkedListMetadataStatuses.TabIndex = 2;
+            // 
+            // checkedListDownloadStatuses
+            // 
+            this.checkedListDownloadStatuses.FormattingEnabled = true;
+            this.checkedListDownloadStatuses.Location = new System.Drawing.Point(3, 103);
+            this.checkedListDownloadStatuses.Name = "checkedListDownloadStatuses";
+            this.checkedListDownloadStatuses.Size = new System.Drawing.Size(188, 94);
+            this.checkedListDownloadStatuses.TabIndex = 3;
+            // 
             // checkedListFileTypes
             // 
             this.checkedListFileTypes.CheckOnClick = true;
             this.checkedListFileTypes.FormattingEnabled = true;
-            this.checkedListFileTypes.Location = new System.Drawing.Point(3, 207);
+            this.checkedListFileTypes.Location = new System.Drawing.Point(3, 203);
             this.checkedListFileTypes.Name = "checkedListFileTypes";
             this.checkedListFileTypes.Size = new System.Drawing.Size(188, 79);
             this.checkedListFileTypes.TabIndex = 0;
@@ -150,7 +167,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.checkedListPlatforms.CheckOnClick = true;
             this.checkedListPlatforms.FormattingEnabled = true;
-            this.checkedListPlatforms.Location = new System.Drawing.Point(3, 292);
+            this.checkedListPlatforms.Location = new System.Drawing.Point(3, 288);
             this.checkedListPlatforms.Name = "checkedListPlatforms";
             this.checkedListPlatforms.Size = new System.Drawing.Size(188, 94);
             this.checkedListPlatforms.TabIndex = 1;
@@ -160,7 +177,7 @@
             this.checkedListTypes.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.checkedListTypes.FormattingEnabled = true;
-            this.checkedListTypes.Location = new System.Drawing.Point(3, 392);
+            this.checkedListTypes.Location = new System.Drawing.Point(3, 388);
             this.checkedListTypes.Name = "checkedListTypes";
             this.checkedListTypes.Size = new System.Drawing.Size(188, 94);
             this.checkedListTypes.TabIndex = 0;
@@ -175,6 +192,7 @@
             // 
             // splitContainer1.Panel1
             // 
+            this.splitContainer1.Panel1.Controls.Add(this.labelProductionsCount);
             this.splitContainer1.Panel1.Controls.Add(this.treeViewProductions);
             // 
             // splitContainer1.Panel2
@@ -183,6 +201,36 @@
             this.splitContainer1.Size = new System.Drawing.Size(833, 731);
             this.splitContainer1.SplitterDistance = 269;
             this.splitContainer1.TabIndex = 3;
+            // 
+            // splitContainer2
+            // 
+            this.splitContainer2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.splitContainer2.Location = new System.Drawing.Point(3, 3);
+            this.splitContainer2.Name = "splitContainer2";
+            // 
+            // splitContainer2.Panel1
+            // 
+            this.splitContainer2.Panel1.Controls.Add(this.treeViewPreview);
+            // 
+            // splitContainer2.Panel2
+            // 
+            this.splitContainer2.Panel2.Controls.Add(this.groupBox1);
+            this.splitContainer2.Size = new System.Drawing.Size(554, 728);
+            this.splitContainer2.SplitterDistance = 205;
+            this.splitContainer2.TabIndex = 1;
+            // 
+            // treeViewPreview
+            // 
+            this.treeViewPreview.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.treeViewPreview.Location = new System.Drawing.Point(0, -3);
+            this.treeViewPreview.Name = "treeViewPreview";
+            this.treeViewPreview.Size = new System.Drawing.Size(206, 731);
+            this.treeViewPreview.TabIndex = 0;
+            this.treeViewPreview.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeView1_AfterSelect);
             // 
             // groupBox1
             // 
@@ -658,51 +706,14 @@
             this.label1.TabIndex = 0;
             this.label1.Text = "Production";
             // 
-            // splitContainer2
+            // labelProductionsCount
             // 
-            this.splitContainer2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.splitContainer2.Location = new System.Drawing.Point(3, 3);
-            this.splitContainer2.Name = "splitContainer2";
-            // 
-            // splitContainer2.Panel1
-            // 
-            this.splitContainer2.Panel1.Controls.Add(this.treeViewPreview);
-            // 
-            // splitContainer2.Panel2
-            // 
-            this.splitContainer2.Panel2.Controls.Add(this.groupBox1);
-            this.splitContainer2.Size = new System.Drawing.Size(554, 728);
-            this.splitContainer2.SplitterDistance = 205;
-            this.splitContainer2.TabIndex = 1;
-            // 
-            // treeViewPreview
-            // 
-            this.treeViewPreview.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.treeViewPreview.Location = new System.Drawing.Point(0, -3);
-            this.treeViewPreview.Name = "treeViewPreview";
-            this.treeViewPreview.Size = new System.Drawing.Size(206, 731);
-            this.treeViewPreview.TabIndex = 0;
-            this.treeViewPreview.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeView1_AfterSelect);
-            // 
-            // checkedListMetadataStatuses
-            // 
-            this.checkedListMetadataStatuses.FormattingEnabled = true;
-            this.checkedListMetadataStatuses.Location = new System.Drawing.Point(3, 3);
-            this.checkedListMetadataStatuses.Name = "checkedListMetadataStatuses";
-            this.checkedListMetadataStatuses.Size = new System.Drawing.Size(188, 94);
-            this.checkedListMetadataStatuses.TabIndex = 2;
-            // 
-            // checkedListDownloadStatuses
-            // 
-            this.checkedListDownloadStatuses.FormattingEnabled = true;
-            this.checkedListDownloadStatuses.Location = new System.Drawing.Point(3, 105);
-            this.checkedListDownloadStatuses.Name = "checkedListDownloadStatuses";
-            this.checkedListDownloadStatuses.Size = new System.Drawing.Size(188, 94);
-            this.checkedListDownloadStatuses.TabIndex = 3;
+            this.labelProductionsCount.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.labelProductionsCount.Location = new System.Drawing.Point(39, 708);
+            this.labelProductionsCount.Name = "labelProductionsCount";
+            this.labelProductionsCount.Size = new System.Drawing.Size(227, 23);
+            this.labelProductionsCount.TabIndex = 1;
+            this.labelProductionsCount.TextAlign = System.Drawing.ContentAlignment.TopRight;
             // 
             // Form1
             // 
@@ -720,12 +731,12 @@
             this.splitContainer1.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
             this.splitContainer1.ResumeLayout(false);
-            this.groupBox1.ResumeLayout(false);
-            this.groupBox1.PerformLayout();
             this.splitContainer2.Panel1.ResumeLayout(false);
             this.splitContainer2.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer2)).EndInit();
             this.splitContainer2.ResumeLayout(false);
+            this.groupBox1.ResumeLayout(false);
+            this.groupBox1.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -788,6 +799,7 @@
         private System.Windows.Forms.TreeView treeViewPreview;
         private System.Windows.Forms.CheckedListBox checkedListMetadataStatuses;
         private System.Windows.Forms.CheckedListBox checkedListDownloadStatuses;
+        private System.Windows.Forms.Label labelProductionsCount;
     }
 }
 
