@@ -32,6 +32,7 @@
             this.buttonUpdate = new System.Windows.Forms.Button();
             this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
             this.buttonListUnknownHtmlUrls = new System.Windows.Forms.Button();
+            this.buttonListUnknownFileTypes = new System.Windows.Forms.Button();
             this.checkedListMetadataStatuses = new System.Windows.Forms.CheckedListBox();
             this.checkedListDownloadStatuses = new System.Windows.Forms.CheckedListBox();
             this.checkedListFileTypes = new System.Windows.Forms.CheckedListBox();
@@ -42,6 +43,7 @@
             this.splitContainer2 = new System.Windows.Forms.SplitContainer();
             this.treeViewPreview = new System.Windows.Forms.TreeView();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.textBoxOutputDetails = new System.Windows.Forms.TextBox();
             this.label23 = new System.Windows.Forms.Label();
             this.label22 = new System.Windows.Forms.Label();
             this.label15 = new System.Windows.Forms.Label();
@@ -86,9 +88,10 @@
             this.textBoxFileName = new System.Windows.Forms.TextBox();
             this.textBoxGroups = new System.Windows.Forms.TextBox();
             this.textBoxTitle = new System.Windows.Forms.TextBox();
+            this.label24 = new System.Windows.Forms.Label();
             this.label16 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
-            this.buttonListUnknownFileTypes = new System.Windows.Forms.Button();
+            this.buttonExploreOutput = new System.Windows.Forms.Button();
             this.flowLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -151,6 +154,16 @@
             this.buttonListUnknownHtmlUrls.Text = "List unknown html urls";
             this.buttonListUnknownHtmlUrls.UseVisualStyleBackColor = true;
             this.buttonListUnknownHtmlUrls.Click += new System.EventHandler(this.buttonListUnknownHtmlUrls_Click);
+            // 
+            // buttonListUnknownFileTypes
+            // 
+            this.buttonListUnknownFileTypes.Location = new System.Drawing.Point(3, 32);
+            this.buttonListUnknownFileTypes.Name = "buttonListUnknownFileTypes";
+            this.buttonListUnknownFileTypes.Size = new System.Drawing.Size(126, 23);
+            this.buttonListUnknownFileTypes.TabIndex = 5;
+            this.buttonListUnknownFileTypes.Text = "List unknown file types";
+            this.buttonListUnknownFileTypes.UseVisualStyleBackColor = true;
+            this.buttonListUnknownFileTypes.Click += new System.EventHandler(this.buttonListUnknownFileTypes_Click);
             // 
             // checkedListMetadataStatuses
             // 
@@ -262,6 +275,8 @@
             this.groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.groupBox1.Controls.Add(this.buttonExploreOutput);
+            this.groupBox1.Controls.Add(this.textBoxOutputDetails);
             this.groupBox1.Controls.Add(this.label23);
             this.groupBox1.Controls.Add(this.label22);
             this.groupBox1.Controls.Add(this.label15);
@@ -306,6 +321,7 @@
             this.groupBox1.Controls.Add(this.textBoxFileName);
             this.groupBox1.Controls.Add(this.textBoxGroups);
             this.groupBox1.Controls.Add(this.textBoxTitle);
+            this.groupBox1.Controls.Add(this.label24);
             this.groupBox1.Controls.Add(this.label16);
             this.groupBox1.Controls.Add(this.label1);
             this.groupBox1.Location = new System.Drawing.Point(3, 3);
@@ -314,6 +330,18 @@
             this.groupBox1.TabIndex = 0;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Metadata/Download";
+            // 
+            // textBoxOutputDetails
+            // 
+            this.textBoxOutputDetails.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.textBoxOutputDetails.Location = new System.Drawing.Point(10, 631);
+            this.textBoxOutputDetails.Multiline = true;
+            this.textBoxOutputDetails.Name = "textBoxOutputDetails";
+            this.textBoxOutputDetails.ReadOnly = true;
+            this.textBoxOutputDetails.Size = new System.Drawing.Size(323, 59);
+            this.textBoxOutputDetails.TabIndex = 5;
             // 
             // label23
             // 
@@ -732,6 +760,16 @@
             this.textBoxTitle.Size = new System.Drawing.Size(260, 20);
             this.textBoxTitle.TabIndex = 1;
             // 
+            // label24
+            // 
+            this.label24.AutoSize = true;
+            this.label24.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label24.Location = new System.Drawing.Point(7, 614);
+            this.label24.Name = "label24";
+            this.label24.Size = new System.Drawing.Size(45, 13);
+            this.label24.TabIndex = 0;
+            this.label24.Text = "Output";
+            // 
             // label16
             // 
             this.label16.AutoSize = true;
@@ -752,15 +790,16 @@
             this.label1.TabIndex = 0;
             this.label1.Text = "Production";
             // 
-            // buttonListUnknownFileTypes
+            // buttonExploreOutput
             // 
-            this.buttonListUnknownFileTypes.Location = new System.Drawing.Point(3, 32);
-            this.buttonListUnknownFileTypes.Name = "buttonListUnknownFileTypes";
-            this.buttonListUnknownFileTypes.Size = new System.Drawing.Size(126, 23);
-            this.buttonListUnknownFileTypes.TabIndex = 5;
-            this.buttonListUnknownFileTypes.Text = "List unknown file types";
-            this.buttonListUnknownFileTypes.UseVisualStyleBackColor = true;
-            this.buttonListUnknownFileTypes.Click += new System.EventHandler(this.buttonListUnknownFileTypes_Click);
+            this.buttonExploreOutput.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.buttonExploreOutput.Location = new System.Drawing.Point(258, 696);
+            this.buttonExploreOutput.Name = "buttonExploreOutput";
+            this.buttonExploreOutput.Size = new System.Drawing.Size(75, 23);
+            this.buttonExploreOutput.TabIndex = 6;
+            this.buttonExploreOutput.Text = "Explore";
+            this.buttonExploreOutput.UseVisualStyleBackColor = true;
+            this.buttonExploreOutput.Click += new System.EventHandler(this.button1_Click);
             // 
             // PouetRobotStateViewer
             // 
@@ -851,6 +890,9 @@
         private System.Windows.Forms.TextBox textBoxDownloadUrl;
         private System.Windows.Forms.Button buttonListUnknownHtmlUrls;
         private System.Windows.Forms.Button buttonListUnknownFileTypes;
+        private System.Windows.Forms.TextBox textBoxOutputDetails;
+        private System.Windows.Forms.Label label24;
+        private System.Windows.Forms.Button buttonExploreOutput;
     }
 }
 

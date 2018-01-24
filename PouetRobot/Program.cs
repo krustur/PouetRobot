@@ -1134,6 +1134,11 @@ namespace PouetRobot
 
         public OutputStatus OutputStatus { get; set; }
         public string Path { get; set; }
+
+        public override string ToString()
+        {
+            return $"{OutputStatus} [{Path}]";
+        }
     }
 
     public class ProductionMetadata

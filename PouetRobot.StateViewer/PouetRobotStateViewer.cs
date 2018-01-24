@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,6 +19,12 @@ namespace PouetRobot.StateViewer
         private readonly IList<string> _allGroups;
 
         private readonly Robot _robot;
+
+        private readonly Color _defaultForeColor;
+
+        private Color _defaultBackColor;
+
+        private Production _selectedProduction = null;
         //private List<FileIdentifiedByType> _allFileIdentifiedBy;
         //private List<string> _allParties;
         //private List<string> _allReleaseDates;
@@ -24,6 +32,11 @@ namespace PouetRobot.StateViewer
         public PouetRobotStateViewer()
         {
             InitializeComponent();
+
+            _defaultForeColor = labelDownloadStatus.ForeColor;
+            _defaultBackColor = textBoxOutputDetails.BackColor;
+
+
             var logger = new LoggerConfiguration()
                 .WriteTo.ColoredConsole()
                 .WriteTo.RollingFile("PouetRobot.StateViewer{date}.log")
@@ -34,7 +47,7 @@ namespace PouetRobot.StateViewer
             var productionsPath = @"D:\Temp\PouetDownload\";
             var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
             var productionsFileName = $@"Productions.json";
-            _robot = new Robot(null, productionsPath, productionsFileName, webCachePath, logger, retryErrorDownloads: false);
+            _robot = new Robot(null, productionsPath, productionsFileName, webCachePath, string.Empty, logger, 100000);
 
             _robot.LoadProductions(IndexScanMode.DisableScan).GetAwaiter().GetResult();
 
@@ -120,6 +133,7 @@ namespace PouetRobot.StateViewer
 
 
                     //Add a child treenode for each Order object in the current Customer object.
+                    bool outputError = false;
                     foreach (var production in productions)
                     {
                         var prodNode = new TreeNode(production.ToString())
@@ -131,6 +145,13 @@ namespace PouetRobot.StateViewer
                             groupNode.ForeColor = Color.OrangeRed;
                             prodNode.ForeColor = Color.OrangeRed;
                         }
+
+                        if (production.OutputDetails.Any(x => x.OutputStatus != OutputStatus.Ok))
+                        {
+                            groupNode.BackColor = Color.Yellow;
+                            prodNode.BackColor = Color.Yellow;
+                        }
+
                         groupNode.Nodes.Add(prodNode);
                     }
 
@@ -220,6 +241,7 @@ namespace PouetRobot.StateViewer
                 var production = _allProductions.Single(x => x.PouetId.ToString() == e.Node.Name);
 
                 labelMetadataStatus.Text = $@"[{production.Metadata.Status.ToString()}]";
+                labelMetadataStatus.ForeColor = production.Metadata.Status == MetadataStatus.Ok ? _defaultForeColor : Color.OrangeRed;
                 textBoxTitle.Text = production.Title;
                 textBoxGroups.Text = production.Metadata.Groups.ToSingleString();
                 textBoxTypes.Text = production.Metadata.Types.ToSingleString();
@@ -238,16 +260,32 @@ namespace PouetRobot.StateViewer
                 textBoxDownloadUrl.Text = production.Metadata.DownloadUrl;
 
                 labelDownloadStatus.Text = $@"[{production.Download.Status.ToString()}]";
+                labelDownloadStatus.ForeColor = production.Download.Status == DownloadStatus.Ok ? _defaultForeColor : Color.OrangeRed;
                 textBoxFileName.Text = production.Download.FileName;
                 textBoxFileType.Text = production.Download.FileType.ToString();
                 textBoxFileSize.Text = production.Download.FileSize.ToString();
                 textBoxFileIdentifiedByType.Text = production.Download.FileIdentifiedByType.ToString();
                 textBoxCacheFileName.Text = production.Download.CacheFileName;
 
+                var outputDetails = string.Empty;
+                var outputDetailsColor = _defaultBackColor;
+                foreach (var outputDetail in production.OutputDetails)
+                {
+                    outputDetails = outputDetails + outputDetail + Environment.NewLine;
+                    if (outputDetail.OutputStatus == OutputStatus.Error)
+                    {
+                        outputDetailsColor = Color.Yellow;
+                    }
+                }
+                textBoxOutputDetails.Text = outputDetails;
+                textBoxOutputDetails.BackColor = outputDetailsColor;
+
+                _selectedProduction = production;
             }
             else
             {
                 labelMetadataStatus.Text = "";
+                labelMetadataStatus.ForeColor = _defaultForeColor;
                 textBoxTitle.Text = "";
                 textBoxGroups.Text = "";
                 textBoxTypes.Text = "";
@@ -266,11 +304,17 @@ namespace PouetRobot.StateViewer
                 textBoxDownloadUrl.Text = "";
 
                 labelDownloadStatus.Text = "";
+                labelDownloadStatus.ForeColor = _defaultForeColor;
                 textBoxFileName.Text = "";
                 textBoxFileType.Text = "";
                 textBoxFileSize.Text = "";
                 textBoxFileIdentifiedByType.Text = "";
                 textBoxCacheFileName.Text = "";
+
+                textBoxOutputDetails.Text = "";
+                textBoxOutputDetails.BackColor = _defaultBackColor;
+
+                _selectedProduction = null;
             }
         }
 
@@ -305,6 +349,17 @@ namespace PouetRobot.StateViewer
                 infoMessage,
                 title,
                 MessageBoxButtons.OK);
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            foreach (var outputDetail in _selectedProduction.OutputDetails)
+            {
+                var isDir = (File.GetAttributes(outputDetail.Path) & FileAttributes.Directory) == FileAttributes.Directory;
+                var path = isDir ? outputDetail.Path : Path.GetDirectoryName(outputDetail.Path);
+                
+                Process.Start("explorer.exe", path);
+            }
         }
     }
 }
