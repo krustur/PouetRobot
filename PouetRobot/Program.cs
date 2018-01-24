@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.Remoting.Messaging;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -35,9 +36,9 @@ namespace PouetRobot
 
             _logger.Information("Begin work!");
 
-            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath, _logger);
+            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath, _logger, retryErrorDownloads: true);
             robot.LoadProductions(IndexScanMode.NoRescan);
-            robot.DownloadMetadata(MetadataScanMode.Rescan);
+            robot.DownloadMetadata(MetadataScanMode.NoRescan);
             robot.DownloadProductions();
 
             _logger.Information("Work is done! Press enter!");
@@ -55,15 +56,17 @@ namespace PouetRobot
         private readonly Logger _logger;
         private readonly HttpClient _httpClient;
         private readonly List<IHtmlProber> _htmlProbers;
+        private readonly bool _retryErrorDownloads;
 
         public Robot(string startPageUrl, string productionsPath, string productionsFileName,
-            string webCachePath, Logger logger)
+            string webCachePath, Logger logger, bool retryErrorDownloads)
         {
             _startPageUrl = startPageUrl;
             _productionsPath = productionsPath;
             _productionsFileName = productionsFileName;
             _webCachePath = webCachePath;
             _logger = logger;
+            _retryErrorDownloads = retryErrorDownloads;
             _httpClient = new HttpClient();
             _htmlProbers = new List<IHtmlProber>
             {
@@ -72,6 +75,7 @@ namespace PouetRobot
                 // DemoZoo
                 new HtmlLinkProber("//div[contains(@class, 'primary')]/a"),
                 new DropboxUrlProber(),
+                new TinyCcProber(),
             };
         }
 
@@ -240,7 +244,7 @@ namespace PouetRobot
                 progress++;
                 if (production.Metadata.Status == MetadataStatus.Ok && rescan == MetadataScanMode.NoRescan)
                 {
-                    _logger.Information("[{Progress}/{MaxProgress}] Already have metadata for [{Production}]", progress, maxProgress, production);
+                    //_logger.Information("[{Progress}/{MaxProgress}] Already have metadata for [{Production}]", progress, maxProgress, production);
                 }
                 else if (DoICare(production))
                 {
@@ -430,7 +434,7 @@ namespace PouetRobot
                     _logger.Information("[{Progress}/{MaxProgress}] Already downloaded [{Production} ({DownloadUrl})]",
                         progress, maxProgress, production, production.Metadata.DownloadUrl);
                 }
-                else if (production.Download.Status == DownloadStatus.Error)
+                else if (production.Download.Status == DownloadStatus.Error && _retryErrorDownloads == false)
                 {
                     _logger.Information("[{Progress}/{MaxProgress}] Skipped due to previous Error [{Production} ({DownloadUrl})]",
                         progress, maxProgress, production, production.Metadata.DownloadUrl);
@@ -473,7 +477,6 @@ namespace PouetRobot
                         var fileType = fileTypeByContent != FileType.Unknown ? fileTypeByContent : fileTypeByName != FileType.Unknown ? fileTypeByName : fileTypeByContentLength;
                         var fileIdentifiedByType = fileTypeByContent != FileType.Unknown ? FileIdentifiedByType.Content :
                             fileTypeByName != FileType.Unknown ? FileIdentifiedByType.FileName : FileIdentifiedByType.ContentLength;
-                        var fileIdentifiedByType2 = fileTypeByContent != FileType.Unknown ? FileIdentifiedByType.Content : FileIdentifiedByType.FileName;
                         HandleProductionContent(productionId, production, fileType, fileIdentifiedByType, response.FileName, response.CacheFileName, response.Content, url);
                         return;
                     default:
@@ -508,15 +511,21 @@ namespace PouetRobot
                     production.Download.Status = DownloadStatus.Ok;
                     return;
                 case FileType.Html:
-                    HandleHtml(productionId, production, fileType, fileIdentifiedByType, fileName, cacheFileName, responseContent, url);
+                    var handleHtmlSuccess = HandleHtml(productionId, production, fileType, fileIdentifiedByType, fileName, cacheFileName, responseContent, url);
+                    if (handleHtmlSuccess == false)
+                    {
+                        production.Download.Status = DownloadStatus.UnknownHtml;
+                        _logger.Warning("Unable to probe html for [{Production}] [{url}]", production.Title, url);
+                    }
                     return;
                 default:
+                    production.Download.Status = DownloadStatus.UnknownFileType;
                     _logger.Warning("Unable to identify file type for [{Production}]", production.Title);
                     return;
             }
         }
 
-        private void HandleHtml(int productionId, Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName, byte[] responseContent, string url)
+        private bool HandleHtml(int productionId, Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName, byte[] responseContent, string url)
         {
             var doc = new HtmlDocument();
             doc.LoadHtml(ByteArrayToString(responseContent));
@@ -527,11 +536,11 @@ namespace PouetRobot
                 if (probeUrl != null)
                 {
                     DownloadProduction(productionId, production, probeUrl);
-                    return;
+                    return true;
                 }
             }
 
-            _logger.Warning("Unable to probe html for [{Production}] [{url}]", production.Title, url);
+            return false;
         }
 
         private readonly string[] _lhaMethodIds =
@@ -540,6 +549,7 @@ namespace PouetRobot
             "-lhd-",
             "-lzs-", "-lz4-",
         };
+
 
 
         private FileType GetFileTypeByContent(byte[] content)
@@ -901,6 +911,22 @@ namespace PouetRobot
         }
     }
 
+    public class TinyCcProber : IHtmlProber
+    {
+        public string GetProbeUrl(string url, HtmlDocument doc)
+        {
+            if (url.ToLower().StartsWith(@"http://tiny.cc/"))
+            {
+                var httpClient = new HttpClient();
+                var result = httpClient.GetAsync(url).GetAwaiter().GetResult();
+                var requestUri = result.RequestMessage.RequestUri;
+                return requestUri.ToString();
+            }
+
+            return null;
+        }
+    }
+
     public class Production
     {
         public Production()
@@ -998,8 +1024,9 @@ namespace PouetRobot
     {
         Unknown = 0,
         Ok,
-
-        Error
+        Error,
+        UnknownHtml,
+        UnknownFileType
     }
 
     public enum FileType

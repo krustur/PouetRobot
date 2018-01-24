@@ -1,6 +1,6 @@
 ﻿namespace PouetRobot.StateViewer
 {
-    partial class Form1
+    partial class PouetRobotStateViewer
     {
         /// <summary>
         /// Required designer variable.
@@ -41,6 +41,7 @@
             this.splitContainer2 = new System.Windows.Forms.SplitContainer();
             this.treeViewPreview = new System.Windows.Forms.TreeView();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.label23 = new System.Windows.Forms.Label();
             this.label22 = new System.Windows.Forms.Label();
             this.label15 = new System.Windows.Forms.Label();
             this.label14 = new System.Windows.Forms.Label();
@@ -55,6 +56,7 @@
             this.label6 = new System.Windows.Forms.Label();
             this.label20 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
+            this.textBoxDownloadUrl = new System.Windows.Forms.TextBox();
             this.label19 = new System.Windows.Forms.Label();
             this.textBoxUrl = new System.Windows.Forms.TextBox();
             this.label4 = new System.Windows.Forms.Label();
@@ -85,8 +87,6 @@
             this.textBoxTitle = new System.Windows.Forms.TextBox();
             this.label16 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
-            this.textBoxDownloadUrl = new System.Windows.Forms.TextBox();
-            this.label23 = new System.Windows.Forms.Label();
             this.flowLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -301,6 +301,15 @@
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Metadata/Download";
             // 
+            // label23
+            // 
+            this.label23.AutoSize = true;
+            this.label23.Location = new System.Drawing.Point(10, 432);
+            this.label23.Name = "label23";
+            this.label23.Size = new System.Drawing.Size(31, 13);
+            this.label23.TabIndex = 4;
+            this.label23.Text = "Dl url";
+            // 
             // label22
             // 
             this.label22.AutoSize = true;
@@ -426,6 +435,16 @@
             this.label5.Size = new System.Drawing.Size(56, 13);
             this.label5.TabIndex = 4;
             this.label5.Text = "Platform(s)";
+            // 
+            // textBoxDownloadUrl
+            // 
+            this.textBoxDownloadUrl.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.textBoxDownloadUrl.Location = new System.Drawing.Point(72, 429);
+            this.textBoxDownloadUrl.Name = "textBoxDownloadUrl";
+            this.textBoxDownloadUrl.ReadOnly = true;
+            this.textBoxDownloadUrl.Size = new System.Drawing.Size(261, 20);
+            this.textBoxDownloadUrl.TabIndex = 2;
             // 
             // label19
             // 
@@ -719,26 +738,7 @@
             this.label1.TabIndex = 0;
             this.label1.Text = "Production";
             // 
-            // textBoxDownloadUrl
-            // 
-            this.textBoxDownloadUrl.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxDownloadUrl.Location = new System.Drawing.Point(72, 429);
-            this.textBoxDownloadUrl.Name = "textBoxDownloadUrl";
-            this.textBoxDownloadUrl.ReadOnly = true;
-            this.textBoxDownloadUrl.Size = new System.Drawing.Size(261, 20);
-            this.textBoxDownloadUrl.TabIndex = 2;
-            // 
-            // label23
-            // 
-            this.label23.AutoSize = true;
-            this.label23.Location = new System.Drawing.Point(10, 432);
-            this.label23.Name = "label23";
-            this.label23.Size = new System.Drawing.Size(31, 13);
-            this.label23.TabIndex = 4;
-            this.label23.Text = "Dl url";
-            // 
-            // Form1
+            // PouetRobotStateViewer
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -746,8 +746,8 @@
             this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.flowLayoutPanel1);
             this.Controls.Add(this.buttonUpdate);
-            this.Name = "Form1";
-            this.Text = "Form1";
+            this.Name = "PouetRobotStateViewer";
+            this.Text = "PoutRobot - State Viewer";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.flowLayoutPanel1.ResumeLayout(false);
             this.splitContainer1.Panel1.ResumeLayout(false);

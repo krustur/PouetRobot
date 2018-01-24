@@ -11,7 +11,7 @@ using Serilog;
 
 namespace PouetRobot.StateViewer
 {
-    public partial class Form1 : Form
+    public partial class PouetRobotStateViewer : Form
     {
         private readonly IList<Production> _allProductions;
         private readonly IList<string> _allGroups;
@@ -21,7 +21,7 @@ namespace PouetRobot.StateViewer
         //private List<string> _allParties;
         //private List<string> _allReleaseDates;
 
-        public Form1()
+        public PouetRobotStateViewer()
         {
             InitializeComponent();
             var logger = new LoggerConfiguration()
@@ -34,7 +34,7 @@ namespace PouetRobot.StateViewer
             var productionsPath = @"D:\Temp\PouetDownload\";
             var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
             var productionsFileName = $@"Productions.json";
-            _robot = new Robot(null, productionsPath, productionsFileName, webCachePath, logger);
+            _robot = new Robot(null, productionsPath, productionsFileName, webCachePath, logger, retryErrorDownloads: false);
 
             _robot.LoadProductions(IndexScanMode.DisableScan);
 
@@ -126,6 +126,11 @@ namespace PouetRobot.StateViewer
                         {
                             Name = production.PouetId.ToString()
                         };
+                        if (production.Download.Status != DownloadStatus.Ok)
+                        {
+                            groupNode.ForeColor = Color.OrangeRed;
+                            prodNode.ForeColor = Color.OrangeRed;
+                        }
                         groupNode.Nodes.Add(prodNode);
                     }
 
