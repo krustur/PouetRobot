@@ -88,6 +88,7 @@
             this.textBoxTitle = new System.Windows.Forms.TextBox();
             this.label16 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
+            this.buttonListUnknownFileTypes = new System.Windows.Forms.Button();
             this.flowLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -128,6 +129,7 @@
             | System.Windows.Forms.AnchorStyles.Left)));
             this.flowLayoutPanel1.AutoScroll = true;
             this.flowLayoutPanel1.Controls.Add(this.buttonListUnknownHtmlUrls);
+            this.flowLayoutPanel1.Controls.Add(this.buttonListUnknownFileTypes);
             this.flowLayoutPanel1.Controls.Add(this.checkedListMetadataStatuses);
             this.flowLayoutPanel1.Controls.Add(this.checkedListDownloadStatuses);
             this.flowLayoutPanel1.Controls.Add(this.checkedListFileTypes);
@@ -153,7 +155,7 @@
             // checkedListMetadataStatuses
             // 
             this.checkedListMetadataStatuses.FormattingEnabled = true;
-            this.checkedListMetadataStatuses.Location = new System.Drawing.Point(3, 32);
+            this.checkedListMetadataStatuses.Location = new System.Drawing.Point(3, 61);
             this.checkedListMetadataStatuses.Name = "checkedListMetadataStatuses";
             this.checkedListMetadataStatuses.Size = new System.Drawing.Size(188, 94);
             this.checkedListMetadataStatuses.TabIndex = 2;
@@ -161,7 +163,7 @@
             // checkedListDownloadStatuses
             // 
             this.checkedListDownloadStatuses.FormattingEnabled = true;
-            this.checkedListDownloadStatuses.Location = new System.Drawing.Point(3, 132);
+            this.checkedListDownloadStatuses.Location = new System.Drawing.Point(3, 161);
             this.checkedListDownloadStatuses.Name = "checkedListDownloadStatuses";
             this.checkedListDownloadStatuses.Size = new System.Drawing.Size(188, 94);
             this.checkedListDownloadStatuses.TabIndex = 3;
@@ -170,7 +172,7 @@
             // 
             this.checkedListFileTypes.CheckOnClick = true;
             this.checkedListFileTypes.FormattingEnabled = true;
-            this.checkedListFileTypes.Location = new System.Drawing.Point(3, 232);
+            this.checkedListFileTypes.Location = new System.Drawing.Point(3, 261);
             this.checkedListFileTypes.Name = "checkedListFileTypes";
             this.checkedListFileTypes.Size = new System.Drawing.Size(188, 79);
             this.checkedListFileTypes.TabIndex = 0;
@@ -181,7 +183,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.checkedListPlatforms.CheckOnClick = true;
             this.checkedListPlatforms.FormattingEnabled = true;
-            this.checkedListPlatforms.Location = new System.Drawing.Point(3, 317);
+            this.checkedListPlatforms.Location = new System.Drawing.Point(3, 346);
             this.checkedListPlatforms.Name = "checkedListPlatforms";
             this.checkedListPlatforms.Size = new System.Drawing.Size(188, 94);
             this.checkedListPlatforms.TabIndex = 1;
@@ -191,7 +193,7 @@
             this.checkedListTypes.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.checkedListTypes.FormattingEnabled = true;
-            this.checkedListTypes.Location = new System.Drawing.Point(3, 417);
+            this.checkedListTypes.Location = new System.Drawing.Point(3, 446);
             this.checkedListTypes.Name = "checkedListTypes";
             this.checkedListTypes.Size = new System.Drawing.Size(188, 94);
             this.checkedListTypes.TabIndex = 0;
@@ -750,6 +752,16 @@
             this.label1.TabIndex = 0;
             this.label1.Text = "Production";
             // 
+            // buttonListUnknownFileTypes
+            // 
+            this.buttonListUnknownFileTypes.Location = new System.Drawing.Point(3, 32);
+            this.buttonListUnknownFileTypes.Name = "buttonListUnknownFileTypes";
+            this.buttonListUnknownFileTypes.Size = new System.Drawing.Size(126, 23);
+            this.buttonListUnknownFileTypes.TabIndex = 5;
+            this.buttonListUnknownFileTypes.Text = "List unknown file types";
+            this.buttonListUnknownFileTypes.UseVisualStyleBackColor = true;
+            this.buttonListUnknownFileTypes.Click += new System.EventHandler(this.buttonListUnknownFileTypes_Click);
+            // 
             // PouetRobotStateViewer
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -838,6 +850,7 @@
         private System.Windows.Forms.Label label23;
         private System.Windows.Forms.TextBox textBoxDownloadUrl;
         private System.Windows.Forms.Button buttonListUnknownHtmlUrls;
+        private System.Windows.Forms.Button buttonListUnknownFileTypes;
     }
 }
 

@@ -1,13 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Runtime.Remoting.Messaging;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using HtmlAgilityPack;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -21,10 +23,12 @@ namespace PouetRobot
     {
         private static Logger _logger;
 
+        //public static Task Main(string[] args)
         static void Main(string[] args)
         {
             var productionsPath = @"D:\Temp\PouetDownload\";
             var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
+            var zip7Path = @"C:\Program files\7-Zip\7z.exe";
             var productionsFileName = $@"Productions.json";
             //var startPageUrl = "http://www.pouet.net/prodlist.php?platform[0]=Amiga+AGA&platform[1]=Amiga+OCS/ECS&page=685";
             var startPageUrl = "http://www.pouet.net/prodlist.php?platform[]=Amiga+AGA&platform[]=Amiga+OCS/ECS&platform[]=Amiga+PPC/RTG";
@@ -36,14 +40,24 @@ namespace PouetRobot
 
             _logger.Information("Begin work!");
 
-            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath, _logger, retryErrorDownloads: true);
-            robot.LoadProductions(IndexScanMode.NoRescan);
-            robot.DownloadMetadata(MetadataScanMode.NoRescan);
-            robot.DownloadProductions();
+            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath, zip7Path, _logger, 256);
+            robot.LoadProductions(IndexScanMode.NoRescan)
+                .GetAwaiter().GetResult()
+                ;
+            robot.DownloadMetadata(MetadataScanMode.NoRescan)
+                .GetAwaiter().GetResult()
+                ;
+            robot.DownloadProductions(DownloadProductionsMode.NoRescan)
+                .GetAwaiter().GetResult()
+                ;
+
+            robot.WriteOutput()
+                //.GetAwaiter().GetResult()
+                ;
+
 
             _logger.Information("Work is done! Press enter!");
             Console.ReadLine();
-
         }
     }
 
@@ -53,20 +67,24 @@ namespace PouetRobot
         private readonly string _productionsPath;
         private readonly string _productionsFileName;
         private readonly string _webCachePath;
+        private readonly string _zip7Path;
         private readonly Logger _logger;
         private readonly HttpClient _httpClient;
         private readonly List<IHtmlProber> _htmlProbers;
-        private readonly bool _retryErrorDownloads;
+        private readonly int _saveProductionsHowOften;
+
+        private int _writeOutputCounter;
 
         public Robot(string startPageUrl, string productionsPath, string productionsFileName,
-            string webCachePath, Logger logger, bool retryErrorDownloads)
+            string webCachePath, string zip7Path, Logger logger, int saveProductionsHowOften)
         {
             _startPageUrl = startPageUrl;
             _productionsPath = productionsPath;
             _productionsFileName = productionsFileName;
             _webCachePath = webCachePath;
+            _zip7Path = zip7Path;
             _logger = logger;
-            _retryErrorDownloads = retryErrorDownloads;
+            _saveProductionsHowOften = saveProductionsHowOften;
             _httpClient = new HttpClient();
             _htmlProbers = new List<IHtmlProber>
             {
@@ -82,7 +100,7 @@ namespace PouetRobot
         public IDictionary<int, Production> Productions { get; set; }
 
 
-        public void LoadProductions(IndexScanMode indexScanMode)
+        public async Task LoadProductions(IndexScanMode indexScanMode)
         {
             _logger.Information("Fetching production index!");
 
@@ -91,14 +109,14 @@ namespace PouetRobot
                 case IndexScanMode.Rescan:
                     Productions = LoadProductions();
                     
-                    RescanIndex(Productions);
+                    await RescanIndex(Productions);
                     SaveProductions();
                     break;
                 case IndexScanMode.NoRescan:
                     Productions = LoadProductions();
                     if (Productions == null)
                     {
-                        Productions = DownloadIndex();
+                        Productions = await DownloadIndex();
                     }
                     SaveProductions();
                     break;
@@ -108,9 +126,9 @@ namespace PouetRobot
             }           
         }
 
-        private void RescanIndex(IDictionary<int, Production> productions)
+        private async Task RescanIndex(IDictionary<int, Production> productions)
         {
-            var newProductions = DownloadIndex();
+            var newProductions = await DownloadIndex();
 
             // TODO: Warn when productions exists in productions, but not in newProductions
 
@@ -131,7 +149,7 @@ namespace PouetRobot
             }
         }
 
-        private Dictionary<int, Production> DownloadIndex()
+        private async Task<Dictionary<int, Production>> DownloadIndex()
         {
             var nextUrl = _startPageUrl;
             var productions = new Dictionary<int, Production>();
@@ -139,15 +157,15 @@ namespace PouetRobot
                    //&& nextUrl.EndsWith("6") == false
                 )
             {
-                nextUrl = DownloadIndexPage(productions, nextUrl);
+                nextUrl = await DownloadIndexPage(productions, nextUrl);
             }
 
             return productions;
         }
 
-        private string DownloadIndexPage(Dictionary<int, Production> productions, string pageUrl)
+        private async Task<string> DownloadIndexPage(Dictionary<int, Production> productions, string pageUrl)
         {
-            var doc = GetHtmlDocument(pageUrl);
+            var doc = await GetHtmlDocument(pageUrl);
 
             var nextPageUrl = doc.DocumentNode
                     .SelectNodes("//div[contains(@class, 'nextpage')]/a")
@@ -229,7 +247,7 @@ namespace PouetRobot
             return Path.Combine(_productionsPath, _productionsFileName);
         }
 
-        public void DownloadMetadata(MetadataScanMode rescan)
+        public async Task DownloadMetadata(MetadataScanMode rescan)
         {
             _logger.Information("Downloading meta data!");
 
@@ -248,11 +266,11 @@ namespace PouetRobot
                 }
                 else if (DoICare(production))
                 {
-                    DownloadMetadataPage(productionPair.Key, production);
+                    await DownloadMetadataPage(productionPair.Key, production);
                     _logger.Information(
                         "[{progress}/{maxProgress}] Download metadata {DownloadMetadataStatus} [{Title} ({DownloadUrl})]",
                         progress, maxProgress, production.Title, production.Metadata.Status, production.Metadata.DownloadUrl);
-                    if (saveCounter++ >= 25)
+                    if (saveCounter++ >= _saveProductionsHowOften)
                     {
                         saveCounter = 0;
                         SaveProductions();
@@ -264,9 +282,9 @@ namespace PouetRobot
 
         }
 
-        private void DownloadMetadataPage(int pouetId, Production production)
+        private async Task DownloadMetadataPage(int pouetId, Production production)
         {
-            var doc = GetHtmlDocument(pouetId, production.PouetUrl);
+            var doc = await GetHtmlDocument(pouetId, production.PouetUrl);
 
             //public string DownloadUrl { get; set; }
             var mainDownloadUrl = HtmlDecode(doc.DocumentNode
@@ -415,7 +433,7 @@ namespace PouetRobot
             return true;
         }
 
-        public void DownloadProductions()
+        public async Task DownloadProductions(DownloadProductionsMode downloadProductionsMode)
         {
             _logger.Information("Downloading productions!");
 
@@ -429,22 +447,24 @@ namespace PouetRobot
 
                 progress++;
 
-                if (production.Download.Status == DownloadStatus.Ok)
+                if (downloadProductionsMode == DownloadProductionsMode.NoRescan && production.Download.Status == DownloadStatus.Ok)
                 {
-                    _logger.Information("[{Progress}/{MaxProgress}] Already downloaded [{Production} ({DownloadUrl})]",
-                        progress, maxProgress, production, production.Metadata.DownloadUrl);
+                    //_logger.Information("[{Progress}/{MaxProgress}] Already downloaded [{Production} ({DownloadUrl})]",
+                        //progress, maxProgress, production, production.Metadata.DownloadUrl);
                 }
-                else if (production.Download.Status == DownloadStatus.Error && _retryErrorDownloads == false)
+                if (downloadProductionsMode != DownloadProductionsMode.RescanRetryError && production.Download.Status == DownloadStatus.Error)
                 {
                     _logger.Information("[{Progress}/{MaxProgress}] Skipped due to previous Error [{Production} ({DownloadUrl})]",
                         progress, maxProgress, production, production.Metadata.DownloadUrl);
                 }
-                else if (DoICare(production))
+                if (((downloadProductionsMode == DownloadProductionsMode.Rescan && production.Download.Status != DownloadStatus.Error)
+                     || (downloadProductionsMode == DownloadProductionsMode.RescanRetryError ))
+                    && DoICare(production))
                 {
-                    DownloadProduction(productionPair.Key, production);
+                    await DownloadProduction(productionPair.Key, production);
                     _logger.Information("[{progress}/{maxProgress}] Downloaded production [{Production} ({DownloadProductionStatus})]",
                         progress, maxProgress, production, production.Download.Status); 
-                    if (saveCounter++ >= 25)
+                    if (saveCounter++ >= _saveProductionsHowOften)
                     {
                         saveCounter = 0;
                         SaveProductions();
@@ -458,17 +478,17 @@ namespace PouetRobot
 
         }
 
-        private void DownloadProduction(int productionId, Production production, string url = null)
+        private async Task DownloadProduction(int productionId, Production production, string url = null)
         {
             try
             {
                 url = url ?? production.Metadata.DownloadUrl;
-                var response = GetUrl(productionId, url);
+                var response = await GetUrl(productionId, url);
 
                 switch (response.HttpResponseMessage.StatusCode)
                 {
                     case HttpStatusCode.Found:
-                        DownloadProduction(productionId, production, response.HttpResponseMessage.Headers.Location.AbsoluteUri);
+                        await DownloadProduction(productionId, production, response.HttpResponseMessage.Headers.Location.AbsoluteUri);
                         return;
                     case HttpStatusCode.OK:
                         var fileTypeByContent = GetFileTypeByContent(response.Content);
@@ -477,7 +497,7 @@ namespace PouetRobot
                         var fileType = fileTypeByContent != FileType.Unknown ? fileTypeByContent : fileTypeByName != FileType.Unknown ? fileTypeByName : fileTypeByContentLength;
                         var fileIdentifiedByType = fileTypeByContent != FileType.Unknown ? FileIdentifiedByType.Content :
                             fileTypeByName != FileType.Unknown ? FileIdentifiedByType.FileName : FileIdentifiedByType.ContentLength;
-                        HandleProductionContent(productionId, production, fileType, fileIdentifiedByType, response.FileName, response.CacheFileName, response.Content, url);
+                        await HandleProductionContent(productionId, production, fileType, fileIdentifiedByType, response.FileName, response.CacheFileName, response.Content, url);
                         return;
                     default:
                         return;
@@ -490,7 +510,7 @@ namespace PouetRobot
             }
         }
 
-        private void HandleProductionContent(int productionId, Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName, byte[] responseContent, string url)
+        private async Task HandleProductionContent(int productionId, Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName, byte[] responseContent, string url)
         {
 
             switch (fileType)
@@ -505,6 +525,12 @@ namespace PouetRobot
                 case FileType.Dms:
                 case FileType.AmigaExe:
                 case FileType.Mkv:
+                case FileType.Avi:
+                case FileType.Amos:
+                case FileType.Gif:
+                case FileType.Png:
+                case FileType.Txt:
+                case FileType.Mpeg:
                     production.Download.FileType = fileType;
                     production.Download.FileIdentifiedByType = fileIdentifiedByType;
                     production.Download.FileName = fileName;
@@ -513,7 +539,7 @@ namespace PouetRobot
                     production.Download.Status = DownloadStatus.Ok;
                     return;
                 case FileType.Html:
-                    var handleHtmlSuccess = HandleHtml(productionId, production, fileType, fileIdentifiedByType, fileName, cacheFileName, responseContent, url);
+                    var handleHtmlSuccess = await HandleHtml(productionId, production, fileType, fileIdentifiedByType, fileName, cacheFileName, responseContent, url);
                     if (handleHtmlSuccess == false)
                     {
                         production.Download.Status = DownloadStatus.UnknownHtml;
@@ -530,7 +556,7 @@ namespace PouetRobot
             }
         }
 
-        private bool HandleHtml(int productionId, Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName, byte[] responseContent, string url)
+        private async Task<bool> HandleHtml(int productionId, Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName, byte[] responseContent, string url)
         {
             var doc = new HtmlDocument();
             doc.LoadHtml(ByteArrayToString(responseContent));
@@ -540,7 +566,7 @@ namespace PouetRobot
                 var probeUrl = htmlProber.GetProbeUrl(url, doc);
                 if (probeUrl != null)
                 {
-                    DownloadProduction(productionId, production, probeUrl);
+                    await DownloadProduction(productionId, production, probeUrl);
                     return true;
                 }
             }
@@ -554,7 +580,6 @@ namespace PouetRobot
             "-lhd-",
             "-lzs-", "-lz4-",
         };
-
 
 
         private FileType GetFileTypeByContent(byte[] content)
@@ -584,7 +609,7 @@ namespace PouetRobot
 
             if (content[0] == 'D' && content[1] == 'M' && content[2] == 'S' && content[3] == '!')
             {
-                return FileType.Zip;
+                return FileType.Dms;
             }
 
             if (content[0] == 'R' && content[1] == 'a' && content[2] == 'r' && content[3] == '!')
@@ -630,6 +655,20 @@ namespace PouetRobot
                     return FileType.Html;
                 case ".mkv":
                     return FileType.Mkv;
+                case ".avi":
+                    return FileType.Avi;
+                case ".amos":
+                    return FileType.Amos;
+                case ".gif":
+                    return FileType.Gif;
+                case ".png":
+                    return FileType.Png;
+                case ".txt":
+                    return FileType.Txt;
+                case ".mpg":
+                case ".mpeg":
+                    return FileType.Mpeg;
+
             }
 
             return FileType.Unknown;
@@ -656,7 +695,7 @@ namespace PouetRobot
         private string GetIdString(byte[] bytes, int offset, int length)
         {
             var actualOffset = Math.Min(bytes.Length, offset);
-            return System.Text.Encoding.UTF8.GetString(bytes, actualOffset, length);
+            return Encoding.UTF8.GetString(bytes, actualOffset, length);
         }        
 
         private string CombinePath(string fullBaseUrl, string nextPageUrl)
@@ -666,32 +705,29 @@ namespace PouetRobot
             return newPath.ToString();
         }
 
-        private HtmlDocument GetHtmlDocument(string pageUrl)
+        private async Task<HtmlDocument> GetHtmlDocument(string pageUrl)
         {
-            var response = GetUrl(-1, pageUrl);
+            var response = await GetUrl(-1, pageUrl);
             var doc = new HtmlDocument();
             doc.LoadHtml(ByteArrayToString(response.Content));
 
             return doc;
         }
 
-        private HtmlDocument GetHtmlDocument(int pouetId, string pageUrl)
+        private async Task<HtmlDocument> GetHtmlDocument(int pouetId, string pageUrl)
         {
-            var response = GetUrl(pouetId, pageUrl);
+            var response = await GetUrl(pouetId, pageUrl);
             var doc = new HtmlDocument();
             doc.LoadHtml(ByteArrayToString(response.Content));
 
             return doc;
         }
 
-        private (HttpResponseMessage HttpResponseMessage, string FileName, String CacheFileName, Byte[] Content) GetUrl(int prefixId, string pageUrl)
+        private async Task<(HttpResponseMessage HttpResponseMessage, string FileName, string CacheFileName, byte[] Content)> GetUrl(int prefixId, string pageUrl)
         {
             var hash = Sha256Hash($"{prefixId}_{pageUrl}");
             var cacheFileName = prefixId == -1 ? $"{hash}.dat" : $"{prefixId}_{hash}.dat";
-            var cacheFileFullPath = prefixId == -1
-                ?
-                Path.Combine(_webCachePath, "Global", cacheFileName)
-                : Path.Combine(_webCachePath, "Production", cacheFileName);
+            var cacheFileFullPath = prefixId == -1 ? GetGlobalCacheFilePath(cacheFileName) : GetProductionCacheFullPath(cacheFileName);
             var pageUri = new Uri(pageUrl);
             var fileName = pageUri.Segments.Last();
 
@@ -713,14 +749,14 @@ namespace PouetRobot
             }
             else
             {
-                System.Net.ServicePointManager.SecurityProtocol =
+                ServicePointManager.SecurityProtocol =
                     SecurityProtocolType.Tls12 |
                     SecurityProtocolType.Tls11 |
                     SecurityProtocolType.Tls; // comparable to modern browsers
                 
-                var responseMessage = _httpClient.GetAsync(pageUrl, HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult();
-                var content = responseMessage.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult(); //.ReadAsStringAsync();
-
+                var responseMessage = await _httpClient.GetAsync(pageUrl);
+                var content = await responseMessage.Content.ReadAsByteArrayAsync();
+                
                 if (responseMessage.StatusCode == HttpStatusCode.OK)
                 {
                     System.IO.File.WriteAllBytes(cacheFileFullPath, content);
@@ -728,6 +764,16 @@ namespace PouetRobot
 
                 return (responseMessage, fileName, cacheFileName, content);
             }
+        }
+
+        private string GetGlobalCacheFilePath(string cacheFileName)
+        {
+            return Path.Combine(_webCachePath, "Global", cacheFileName);
+        }
+
+        private string GetProductionCacheFullPath(string cacheFileName)
+        {
+            return Path.Combine(_webCachePath, "Production", cacheFileName);
         }
 
         public void Dispose()
@@ -771,12 +817,12 @@ namespace PouetRobot
 
         private string ByteArrayToString(byte[] byteArray)
         {
-            return System.Text.Encoding.UTF8.GetString(byteArray);
+            return Encoding.UTF8.GetString(byteArray);
         }
 
-        public IList<FileBase> GetMasterFolderStructure()
+        public IList<Folder> GetMasterFolderStructure()
         {
-            var folderStructure = new List<FileBase>();
+            var folderStructure = new List<Folder>();
 
             //folderLayout.Add(new File("en fil.exe"));
 
@@ -786,23 +832,26 @@ namespace PouetRobot
                     .FilterMetadataStatus(MetadataStatus.Ok)
                 ;
 
-            var groupProductions = productions.FilterExcludeTypes(new List<string>
-            {
-                "artpack",
-                "bbstro",
-                "cracktro",
-                "demotool",
-                "diskmag",
-                "game", 
-                "invitation", 
-                "liveact", 
-                "musicdisk", 
-                "procedural graphics", 
-                "report", 
-                "slideshow", 
-                "votedisk", 
-                "wild",
-            });
+            var groupProductions = productions
+                    .FilterExcludeTypes(new List<string>
+                    {
+                        "artpack",
+                        "bbstro",
+                        "cracktro",
+                        "demotool",
+                        "diskmag",
+                        "game",
+                        "invitation",
+                        "liveact",
+                        "musicdisk",
+                        "procedural graphics",
+                        "report",
+                        "slideshow",
+                        "votedisk",
+                        "wild",
+                    })
+                    //.FilterExcludeFileTypes(new List<string>{FileType.Adf.ToString(), FileType.});
+                    ;
             folderStructure.Add(new Folder("Groups", GetProductionsFolderStructure(groupProductions, includeTypes: true)));
             folderStructure.Add(new Folder("Artpacks", GetProductionsFolderStructure(productions.FilterType("artpack"), includeTypes: false)));
             folderStructure.Add(new Folder("BBStros", GetProductionsFolderStructure(productions.FilterType("bbstro"), includeTypes: false)));
@@ -822,30 +871,194 @@ namespace PouetRobot
             return folderStructure;
         }
 
-        private List<FileBase> GetProductionsFolderStructure(IList<Production> productions, bool includeTypes)
+        private List<Folder> GetProductionsFolderStructure(IList<Production> productions, bool includeTypes)
         {
-            var folderStructure = new List<FileBase>();
+            var folderStructure = new List<Folder>();
 
             var groups = productions.GetGroups();
             foreach (var group in groups)
             {
                 var groupProductions = productions.Where(x => x.Metadata.Groups.Contains(group));
 
-                var groupFolders = new List<FileBase>();
+                var groupFolders = new List<Folder>();
                 foreach (var groupProduction in groupProductions)
                 {
-                    groupFolders.Add(new Folder(groupProduction.GetFolderName(includeGroups: false, includeTypes: includeTypes)));
+                    groupFolders.Add(new Folder(groupProduction.GetFolderName(includeGroups: false, includeTypes: includeTypes, fileSystemSafeNames: true), groupProduction));
                 }
                 folderStructure.Add(new Folder(group, groupFolders));
             }
 
             return folderStructure;
         }
+
+        public void WriteOutput()
+        {
+            // TODO: How should we handle this?
+            foreach (var production in Productions.Values)
+            {
+                production.OutputDetails = new List<OutputDetail>();
+            }
+            SaveProductions();
+
+            _writeOutputCounter = 0;
+
+            var masterFolderStructure = GetMasterFolderStructure();
+            var dateTime = $"{DateTime.Now.ToString("yyMMdd_HHmm")}";
+            WriteOutputFolder($"Output{dateTime}", masterFolderStructure);
+        }
+
+        private void WriteOutputFolder(string folderPath, IList<Folder> folderStructure)
+        {
+            //MakedirIfNotExists(folderPath);
+
+            foreach (var folder in folderStructure)
+            {
+                var thisFolder = $"{folderPath}\\{folder.Name}";
+                MakedirIfNotExists(thisFolder);
+                WriteOutputFolder(thisFolder, folder.Childrens);
+                if (folder.Production != null)
+                {
+                    WriteProductionToFolder(thisFolder, folder.Production);
+                }
+            }
+        }
+
+        private void WriteProductionToFolder(string outputFolder, Production production)
+        {
+            var cacheFilePath = GetProductionCacheFullPath(production.Download.CacheFileName);
+
+            switch (production.Download.FileType)
+            {
+
+                case FileType.Unknown:
+                case FileType.Html:
+                    break;
+                case FileType.Lha:
+                case FileType.Zip:
+                case FileType.Zip7:
+                case FileType.Rar:
+                case FileType.Lzx:
+                case FileType.Gz:
+                    var extractDestPath = Path.Combine(_productionsPath, outputFolder);
+                    //var zip7Command = $"/C \"{_zip7Path}\" x \"{cacheFilePath}\" -o\"{extractDestPath}\"";
+                    var zip7Command2 = $"\"{_zip7Path}\" x \"{cacheFilePath}\" -o\"{extractDestPath}\"";
+                    _logger.Information($"Extracting to [{extractDestPath}]");
+                    //_logger.Information(zip7Command);
+                    //System.Diagnostics.Process.Start("cmd.exe", zip7Command);
+                    try
+                    {
+                        Process cmd = new Process();
+                        cmd.StartInfo.FileName = "cmd.exe";
+                        cmd.StartInfo.RedirectStandardInput = true;
+                        cmd.StartInfo.RedirectStandardOutput = true;
+                        cmd.StartInfo.CreateNoWindow = true;
+                        cmd.StartInfo.UseShellExecute = false;
+                        cmd.Start();
+
+                        cmd.StandardInput.WriteLine($"{zip7Command2}");
+                        cmd.StandardInput.Flush();
+                        cmd.StandardInput.Close();
+                        cmd.WaitForExit();
+                        var cmdOutput = cmd.StandardOutput.ReadToEnd();
+                        if (cmdOutput.Contains("Everything is Ok"))
+                        {
+                            _logger.Information(cmdOutput);
+                            production.OutputDetails.Add(new OutputDetail(OutputStatus.Ok, extractDestPath));
+
+                        }
+                        else
+                        {
+                            _logger.Error(cmdOutput);
+                            production.OutputDetails.Add(new OutputDetail(OutputStatus.Error, extractDestPath));
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        production.OutputDetails.Add(new OutputDetail(OutputStatus.Error, extractDestPath));
+                    }
+
+                    break;
+
+                case FileType.AmigaExe:
+                case FileType.Adf:
+                case FileType.Dms:
+                case FileType.Mkv:
+                case FileType.Avi:
+                case FileType.Amos:
+                case FileType.Mpeg:
+                case FileType.Txt:
+                case FileType.Png:
+                case FileType.Gif:                 
+                    var destPath = Path.Combine(_productionsPath, outputFolder, production.Download.FileName);
+                    var destFileNameOnly = Path.GetFileNameWithoutExtension(destPath);
+                    var destExtension = Path.GetExtension(destPath);
+                    var destDirectoryOnly = Path.GetDirectoryName(destPath);
+                    try
+                    {
+                        var dupeCount = 1;
+                        while (File.Exists(destPath))
+                        {
+                            string tempFileName = $"{destFileNameOnly}({dupeCount++})";
+                            destPath = Path.Combine(destDirectoryOnly, tempFileName + destExtension);
+                            _logger.Warning($"File already exists! Duplicate files? [{destPath}]");
+                        }
+
+                        _logger.Information($"Copying file [{destPath}]");
+                        File.Copy(cacheFilePath, destPath);
+                        production.OutputDetails.Add(new OutputDetail(OutputStatus.Ok, destPath));
+                    }
+                    catch (Exception)
+                    {
+                        production.OutputDetails.Add(new OutputDetail(OutputStatus.Error, destPath));                        
+                    }
+
+                    break;
+
+                default:
+                    break;
+            }
+
+            _writeOutputCounter++;
+            if (_writeOutputCounter > _saveProductionsHowOften)
+            {
+                _writeOutputCounter = 0;
+                SaveProductions();
+            }
+        }
+
+        private void MakedirIfNotExists(string output)
+        {
+            var fullPath = Path.Combine(_productionsPath, output);
+            var dir = new DirectoryInfo(fullPath);
+            if (dir.Exists == false)
+            {
+                _logger.Information($"Creating folder [{fullPath}");
+                dir.Create();
+            }
+        }
     }
 
-    public class FileBase
+    public class Folder
     {
         public string Name { get; set; }
+
+        public Folder(string folderName, IList<Folder> children)
+        {
+            Name = folderName;
+            Production = null;
+            Childrens = children;
+        }
+
+        public Folder(string folderName, Production production)
+        {
+            Name = folderName;
+            Production = production;
+            Childrens = new List<Folder>();
+
+        }
+
+        public IList<Folder> Childrens { get; set; }
+        public Production Production { get; set; }
 
         public override string ToString()
         {
@@ -853,91 +1066,6 @@ namespace PouetRobot
         }
     }
 
-    public class Folder : FileBase
-    {
-        public Folder(string folderName, IList<FileBase> children)
-        {
-            Name = folderName;
-            Childrens = children;
-        }
-
-        public Folder(string folderName)
-        {
-            Name = folderName;
-            Childrens = new List<FileBase>();
-
-        }
-
-        public IList<FileBase> Childrens { get; set; }
-    }
-
-    public class File : FileBase
-    {
-        public File(string fileName)
-        {
-            Name = fileName;
-        }
-    }
-
-    public interface IHtmlProber
-    {
-        string GetProbeUrl(string url, HtmlDocument doc);
-
-    }
-
-    public class HtmlLinkProber : IHtmlProber
-    {
-        private readonly string _linkXPath;
-
-        public HtmlLinkProber(string linkXPath)
-        {
-            _linkXPath = linkXPath;
-        }
-
-        public string GetProbeUrl(string url, HtmlDocument doc)
-        {
-            var probeUrl = doc.DocumentNode
-                .SelectNodes(_linkXPath)
-                ?.FirstOrDefault()
-                ?.Attributes["href"]
-                ?.Value;
-            return probeUrl;
-        }
-    }
-
-    public class DropboxUrlProber : IHtmlProber
-    {
-        public string GetProbeUrl(string url, HtmlDocument doc)
-        {
-            url = url.Trim();
-            if (url.StartsWith("http://www.dropbox.com") || url.StartsWith("https://www.dropbox.com"))
-            {
-                if (url.EndsWith("dl=0"))
-                {
-                    return url.Substring(0, url.Length - 1) + "1";
-                }
-
-                return url + "?dl=1";
-            }
-            return null;
-        }
-    }
-
-    public class TinyCcProber : IHtmlProber
-    {
-        public string GetProbeUrl(string url, HtmlDocument doc)
-        {
-            if (url.ToLower().StartsWith(@"http://tiny.cc/"))
-            {
-                var httpClient = new HttpClient();
-                var result = httpClient.GetAsync(url).GetAwaiter().GetResult();
-                var requestUri = result.RequestMessage.RequestUri;
-                return requestUri.ToString();
-            }
-
-            return null;
-        }
-    }
 
     public class Production
     {
@@ -947,26 +1075,65 @@ namespace PouetRobot
             Download = new ProductionDownload();
         }
 
-        // Pass 1 (list)
         public int PouetId { get; set; }
         public string Title { get; set; }
         public string PouetUrl { get; set; }
 
         public ProductionMetadata Metadata { get; }
         public ProductionDownload Download { get; }
+        public IList<OutputDetail> OutputDetails { get; set; }
 
         public override string ToString()
         {
-            return GetFolderName(includeGroups: true, includeTypes: true);
+            return GetFolderName(includeGroups: true, includeTypes: true, fileSystemSafeNames: false);
         }
 
-        public string GetFolderName(bool includeGroups, bool includeTypes)
+        public string GetFolderName(bool includeGroups, bool includeTypes, bool fileSystemSafeNames)
         {
             var groups = includeGroups ? $@" [{Metadata.Groups.ToSingleString()}]" : string.Empty;
             var types = includeTypes ? $@"  [{Metadata.Types.ToSingleString()}]" : string.Empty;
 
-            return $"{Title}{groups}{types} [{Metadata.Platforms.ToSingleString()}]";
+            var folderName = $"{Title}{groups}{types} [{Metadata.Platforms.ToSingleString()}]";
+            if (fileSystemSafeNames)
+            {
+                folderName = MakeFileSystemSafeName(folderName);
+            }
+            return folderName;
         }
+
+        private string MakeFileSystemSafeName(string fileName)
+        {
+            foreach (var invalidFileNameChar in Path.GetInvalidFileNameChars())
+            {
+                fileName = fileName.Replace(invalidFileNameChar.ToString(), "");
+            }
+
+            return fileName;
+        }
+    }
+
+    public class OutputDetail
+    {
+        public OutputDetail()
+        {
+            OutputStatus = OutputStatus.Unknown;
+            Path = null;
+        }
+
+        public OutputDetail(OutputStatus outputStatus)
+        {
+            OutputStatus = outputStatus;
+            Path = null;
+        }
+
+        public OutputDetail(OutputStatus outputStatus, string path)
+        {
+            OutputStatus = outputStatus;
+            Path = path;
+        }
+
+        public OutputStatus OutputStatus { get; set; }
+        public string Path { get; set; }
     }
 
     public class ProductionMetadata
@@ -977,7 +1144,7 @@ namespace PouetRobot
             Platforms = new List<string>();
             Groups = new List<string>();
         }
-        // Pass 2 (metadata)
+
         public MetadataStatus Status { get; set; }
 
         public string DownloadUrl { get; set; }
@@ -1002,7 +1169,6 @@ namespace PouetRobot
 
     public class ProductionDownload
     {
-        // Pass 3 (download)
         public DownloadStatus Status { get; set; }
         public FileType FileType { get; set; }
         public FileIdentifiedByType FileIdentifiedByType { get; set; }
@@ -1012,19 +1178,6 @@ namespace PouetRobot
     }
 
 
-    public static class StringListExtensions
-    {
-        public static string ToSingleString(this IList<string> strings, string separator = "-")
-        {
-            if (strings.Count == 0)
-            {
-                return string.Empty;
-            }
-
-            var result = strings.Aggregate((i, j) => i + separator + j);
-            return result;
-        }
-    }
     public enum MetadataStatus
     {
         Unknown = 0,
@@ -1041,6 +1194,13 @@ namespace PouetRobot
         UnknownFileType
     }
 
+    public enum OutputStatus
+    {
+        Unknown = 0,
+        Ok,
+        Error,
+    }
+
     public enum FileType
     {
         Unknown = 0,
@@ -1054,7 +1214,13 @@ namespace PouetRobot
         Rar,
         Lzx,
         Gz,
-        Mkv
+        Mkv,
+        Avi,
+        Amos,
+        Mpeg,
+        Txt,
+        Png,
+        Gif
     }
 
     public enum FileIdentifiedByType
@@ -1063,30 +1229,6 @@ namespace PouetRobot
         Content,
         FileName,
         ContentLength
-    }
-
-    public static class EnumerableExtensions
-    {
-        public static IEnumerable<TSource> DistinctBy<TSource, TKey>
-            (this IEnumerable<TSource> source, Func<TSource, TKey> keySelector)
-        {
-            HashSet<TKey> seenKeys = new HashSet<TKey>();
-            foreach (TSource element in source)
-            {
-                if (seenKeys.Add(keySelector(element)))
-                {
-                    yield return element;
-                }
-            }
-        }
-    }
-
-    public static class StringExtensions
-    {
-        public static string TrimNbsp(this string source)
-        {
-            return source.Replace("&nbsp;", "").Trim();
-        }
     }
 
     public enum IndexScanMode
@@ -1104,81 +1246,13 @@ namespace PouetRobot
         NoRescan
     }
 
-    public static class ProductionListExtensions
+    public enum DownloadProductionsMode
     {
-        public static IList<Production> FilterFileTypes(this IList<Production> productions, IList<string> filter)
-        {
-            return filter.Count > 0
-                ? productions
-                    .Where(x => filter.Contains(x.Download.FileType.ToString()))
-                    .ToList()
-                : productions;
-        }
-
-        public static IList<Production> FilterPlatforms(this IList<Production> productions, IList<string> filter)
-        {
-            return filter.Count > 0
-                ? productions
-                    .Where(x => x.Metadata.Platforms.Any(filter.Contains))
-                    .ToList()
-                : productions;
-        }
-
-        public static IList<Production> FilterType(this IList<Production> productions, string filter)
-        {
-            return FilterTypes(productions, new List<string> {filter});
-        }
-
-        public static IList<Production> FilterTypes(this IList<Production> productions, IList<string> filter)
-        {
-            return filter.Count > 0
-                ? productions
-                    .Where(x => x.Metadata.Types.Any(filter.Contains))
-                    .ToList()
-                : productions;
-        }
-
-        public static IList<Production> FilterExcludeTypes(this IList<Production> productions, IList<string> filter)
-        {
-            return filter.Count > 0
-                ? productions
-                    .Where(x => x.Metadata.Types.Any(y => filter.Contains(y) == false))
-                    .ToList()
-                : productions;
-        }
-
-        public static IList<Production> FilterMetadataStatus(this IList<Production> productions, MetadataStatus metadataStatus)
-        {
-            return FilterMetadataStatuses(productions, new List<string> { metadataStatus.ToString() });
-        }
-
-        public static IList<Production> FilterMetadataStatuses(this IList<Production> productions, IList<string> filter)
-        {
-            return filter.Count > 0
-                ? productions
-                    .Where(x => filter.Contains(x.Metadata.Status.ToString()))
-                    .ToList()
-                : productions;
-        }
-
-        public static IList<Production> FilterDownloadStatus(this IList<Production> productions, DownloadStatus downloadStatus)
-        {
-            return FilterDownloadStatuses(productions, new List<string> {downloadStatus.ToString()});
-        }
-
-        public static IList<Production> FilterDownloadStatuses(this IList<Production> productions, IList<string> filter)
-        {
-            return filter.Count > 0
-                ? productions
-                    .Where(x => filter.Contains(x.Download.Status.ToString()))
-                    .ToList()
-                : productions;
-        }
-
-        public static IList<string> GetGroups(this IList<Production> productions)
-        {
-            return productions.SelectMany(x => x.Metadata.Groups).DistinctBy(x => x).OrderBy(x => x).ToList();
-        }
+        Unknown = 0,
+        Rescan,
+        RescanRetryError,
+        NoRescan
     }
+
 
 }

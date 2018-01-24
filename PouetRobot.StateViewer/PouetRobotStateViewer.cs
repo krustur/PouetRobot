@@ -36,7 +36,7 @@ namespace PouetRobot.StateViewer
             var productionsFileName = $@"Productions.json";
             _robot = new Robot(null, productionsPath, productionsFileName, webCachePath, logger, retryErrorDownloads: false);
 
-            _robot.LoadProductions(IndexScanMode.DisableScan);
+            _robot.LoadProductions(IndexScanMode.DisableScan).GetAwaiter().GetResult();
 
             _allProductions = _robot.Productions.Select(x => x.Value).ToList();
 
@@ -171,20 +171,22 @@ namespace PouetRobot.StateViewer
             treeViewPreview.EndUpdate();
         }
 
-        private IList<TreeNode> CreateTreeViewNodes(IList<FileBase> folderLayout)
+        private IList<TreeNode> CreateTreeViewNodes(IList<Folder> folderLayout)
         {
             var nodes = new List<TreeNode>();
-            foreach (var folder in folderLayout.OfType<Folder>().OrderBy(x => x.Name))
+            foreach (var folder in folderLayout.OrderBy(x => x.Name))
             {
                 var children = CreateTreeViewNodes(folder.Childrens);
                 var folderNode = new TreeNode(folder.Name, children.ToArray());
                 nodes.Add(folderNode);
-            }
 
-            foreach (var file in folderLayout.OfType<File>().OrderBy(x => x.Name))
-            {
-                var fileNode = new TreeNode(file.Name);
-                nodes.Add(fileNode);
+                if (folder.Production != null)
+                {
+                    var fileNode = new TreeNode(folder.Production.Download.FileName);
+                    folderNode.Nodes.Add(fileNode);
+                    folderNode.Name = folder.Production.PouetId.ToString();
+                    fileNode.Name = folder.Production.PouetId.ToString();
+                }
             }
 
             return nodes;
@@ -280,13 +282,29 @@ namespace PouetRobot.StateViewer
                 .Select(x => x.Metadata.DownloadUrl)
                 .ToList()
                 .ToSingleString("\n\r");
+            ShowInfoMessage(@"Urls with unknown html", unknownHtml);
+                
+        }
+
+        private void buttonListUnknownFileTypes_Click(object sender, EventArgs e)
+        {
+            var unknownHtml = _allProductions
+                .Where(x => x.Download.Status == DownloadStatus.UnknownFileType)
+                .OrderBy(x => x.Title)
+                //.Select(x => $"{x.Title} {x.Download.CacheFileName} [{x.Download.FileSize}]")
+                .Select(x => $"{x.ToString()} {x.Download.FileName} [{x.Download.FileSize}] {x.Download.CacheFileName} ")
+                .ToList()
+                .ToSingleString("\n\r")
+                ;
+            ShowInfoMessage(@"Urls with unknown html", unknownHtml);
+        }
+
+        private void ShowInfoMessage(string title, string infoMessage)
+        {
             MessageBox.Show(
-                unknownHtml,
-                @"Urls with unknown html",
-                MessageBoxButtons.OK
-                //,
-                //MessageBoxIcon icon
-            );
+                infoMessage,
+                title,
+                MessageBoxButtons.OK);
         }
     }
 }
