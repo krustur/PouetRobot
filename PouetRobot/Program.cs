@@ -500,9 +500,11 @@ namespace PouetRobot
                 case FileType.Zip7:
                 case FileType.Rar:
                 case FileType.Lzx:
+                case FileType.Gz:
                 case FileType.Adf:
                 case FileType.Dms:
                 case FileType.AmigaExe:
+                case FileType.Mkv:
                     production.Download.FileType = fileType;
                     production.Download.FileIdentifiedByType = fileIdentifiedByType;
                     production.Download.FileName = fileName;
@@ -519,6 +521,9 @@ namespace PouetRobot
                     }
                     return;
                 default:
+                    production.Download.FileName = fileName;
+                    production.Download.FileSize= responseContent.Length;
+                    production.Download.CacheFileName = cacheFileName;
                     production.Download.Status = DownloadStatus.UnknownFileType;
                     _logger.Warning("Unable to identify file type for [{Production}]", production.Title);
                     return;
@@ -596,6 +601,11 @@ namespace PouetRobot
             //    return FileType.Adf;
             //}
 
+            if (content[0] == 0x1f && content[1] == 0x8b)
+            {
+                return FileType.Gz;
+            }
+
             if (IsHtml(content))
             {
                 return FileType.Html;
@@ -618,6 +628,8 @@ namespace PouetRobot
                 case ".htm":
                 case ".html":
                     return FileType.Html;
+                case ".mkv":
+                    return FileType.Mkv;
             }
 
             return FileType.Unknown;
@@ -706,7 +718,7 @@ namespace PouetRobot
                     SecurityProtocolType.Tls11 |
                     SecurityProtocolType.Tls; // comparable to modern browsers
                 
-                var responseMessage = _httpClient.GetAsync(pageUrl).GetAwaiter().GetResult();
+                var responseMessage = _httpClient.GetAsync(pageUrl, HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult();
                 var content = responseMessage.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult(); //.ReadAsStringAsync();
 
                 if (responseMessage.StatusCode == HttpStatusCode.OK)
@@ -1040,7 +1052,9 @@ namespace PouetRobot
         Html,
         Dms,
         Rar,
-        Lzx
+        Lzx,
+        Gz,
+        Mkv
     }
 
     public enum FileIdentifiedByType

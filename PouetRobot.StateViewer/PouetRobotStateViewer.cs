@@ -271,5 +271,22 @@ namespace PouetRobot.StateViewer
                 textBoxCacheFileName.Text = "";
             }
         }
+
+        private void buttonListUnknownHtmlUrls_Click(object sender, EventArgs e)
+        {
+            var unknownHtml = _allProductions
+                .Where(x => x.Download.Status == DownloadStatus.UnknownHtml)
+                .OrderBy(x => x.Metadata.DownloadUrl)
+                .Select(x => x.Metadata.DownloadUrl)
+                .ToList()
+                .ToSingleString("\n\r");
+            MessageBox.Show(
+                unknownHtml,
+                @"Urls with unknown html",
+                MessageBoxButtons.OK
+                //,
+                //MessageBoxIcon icon
+            );
+        }
     }
 }
