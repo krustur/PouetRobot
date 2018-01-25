@@ -29,12 +29,12 @@ namespace PouetRobot
             var zip7Path = @"C:\Program files\7-Zip\7z.exe";
             var productionsFileName = $@"Productions.json";
 
-            var productionsPath = @"D:\Temp\PouetDownload\";
-            var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
-            var startPageUrl = "http://www.pouet.net/prodlist.php?platform[]=Amiga+AGA&platform[]=Amiga+OCS/ECS&platform[]=Amiga+PPC/RTG";
-            //var productionsPath = @"D:\Temp\PouetDownload_PC\";
-            //var webCachePath = @"D:\Temp\PouetDownload_PC\WebCache\";
-            //var startPageUrl = "http://www.pouet.net/prodlist.php?platform[]=Windows&page=1";
+            //var productionsPath = @"D:\Temp\PouetDownload\";
+            //var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
+            //var startPageUrl = "http://www.pouet.net/prodlist.php?platform[]=Amiga+AGA&platform[]=Amiga+OCS/ECS&platform[]=Amiga+PPC/RTG";
+            var productionsPath = @"D:\Temp\PouetDownload_PC\";
+            var webCachePath = @"D:\Temp\PouetDownload_PC\WebCache\";
+            var startPageUrl = "http://www.pouet.net/prodlist.php?platform[]=Windows&page=1";
 
             _logger = new LoggerConfiguration()
                 .WriteTo.ColoredConsole()
@@ -44,7 +44,7 @@ namespace PouetRobot
             _logger.Information("Begin work!");
 
             var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath, zip7Path, _logger, 256);
-            robot.LoadProductions(IndexScanMode.Rescan);
+            robot.LoadProductions(IndexScanMode.NoRescan);
             robot.DownloadMetadata(MetadataScanMode.Rescan);
             robot.DownloadProductions(DownloadProductionsMode.Rescan);
             robot.WriteOutput();
@@ -168,7 +168,7 @@ namespace PouetRobot
             var doc = GetHtmlDocument(pageUrl);
 
             var nextPageUrl = doc.DocumentNode
-                    .SelectNodes("//div[contains(@class, 'nextpage')]/a")
+                    .SelectNodes("//div[@class='nextpage']/a")
                     ?.FirstOrDefault()
                     ?.Attributes["href"]
                     ?.Value
@@ -288,14 +288,14 @@ namespace PouetRobot
 
             //public string DownloadUrl { get; set; }
             var mainDownloadUrl = HtmlDecode(doc.DocumentNode
-                    .SelectNodes("//a[contains(@id, 'mainDownloadLink')]")
+                    .SelectNodes("//a[@id='mainDownloadLink']")
                     ?.FirstOrDefault()
                     ?.Attributes["href"]
                     ?.Value
                     ?.Trim());
 
             //public IList<string> Types { get; set; }
-            var types = doc.DocumentNode.SelectNodes("//table[contains(@id, 'stattable')]//a[starts-with(@href, 'prodlist.php?type')]//span");
+            var types = doc.DocumentNode.SelectNodes("//table[@id='stattable']//a[starts-with(@href, 'prodlist.php?type')]//span");
             production.Metadata.Types.Clear();
             if (types != null)
             {
@@ -305,7 +305,7 @@ namespace PouetRobot
                 }
             }
             //public IList<string> Platforms { get; set; }
-            var platforms = doc.DocumentNode.SelectNodes("//table[contains(@id, 'stattable')]//a[starts-with(@href, 'prodlist.php?platform')]//span");
+            var platforms = doc.DocumentNode.SelectNodes("//table[@id='stattable']//a[starts-with(@href, 'prodlist.php?platform')]//span");
             production.Metadata.Platforms.Clear();
             if (platforms != null)
             {
@@ -317,7 +317,7 @@ namespace PouetRobot
 
             //public IList<string> Groups { get; set; }
             var groups = doc.DocumentNode
-                    .SelectNodes("//span[contains(@id, 'title')]//a[starts-with(@href, 'groups.php')]");
+                    .SelectNodes("//span[@id='title']//a[starts-with(@href, 'groups.php')]");
             production.Metadata.Groups.Clear();
             if (groups != null)
             {
@@ -330,7 +330,7 @@ namespace PouetRobot
             //public string Party { get; set; }
             //public string PartyYear { get; set; }
             var party = doc.DocumentNode
-                .SelectSingleNode("//table[contains(@id, 'stattable')]//a[starts-with(@href, 'party.php')]");
+                .SelectSingleNode("//table[@id='stattable']//a[starts-with(@href, 'party.php')]");
             if (party != null)
             {
                 production.Metadata.Party = HtmlDecode(party.InnerText);
@@ -339,14 +339,14 @@ namespace PouetRobot
                 production.Metadata.PartyYear = year.Trim();
             }
             //public string PartyCompo { get; set; }
-            var compo = doc.DocumentNode.SelectSingleNode("//table[contains(@id, 'stattable')]//td[starts-with(text(), 'compo')]");
+            var compo = doc.DocumentNode.SelectSingleNode("//table[@id='stattable']//td[starts-with(text(), 'compo')]");
             if (compo != null)
             {
                 production.Metadata.PartyCompo = GetStringOrNaNull(HtmlDecode(compo.NextSibling.NextSibling.InnerText));
             }
 
             //public string PartyRank { get; set; }
-            var ranked = doc.DocumentNode.SelectSingleNode("//table[contains(@id, 'stattable')]//td[starts-with(text(), 'ranked')]");
+            var ranked = doc.DocumentNode.SelectSingleNode("//table[@id='stattable']//td[starts-with(text(), 'ranked')]");
             if (ranked != null)
             {
                 production.Metadata.PartyRank = GetStringOrNaNull(HtmlDecode(ranked.NextSibling.NextSibling.InnerText));
@@ -354,28 +354,28 @@ namespace PouetRobot
 
 
             //public string ReleaseDate { get; set; }
-            var releaseDate = doc.DocumentNode.SelectSingleNode("//table[contains(@id, 'stattable')]//td[starts-with(text(), 'release date')]");
+            var releaseDate = doc.DocumentNode.SelectSingleNode("//table[@id='stattable']//td[starts-with(text(), 'release date')]");
             if (releaseDate != null)
             {
                 production.Metadata.ReleaseDate = HtmlDecode(releaseDate.NextSibling.NextSibling.InnerText);
             }
 
             //public int Rulez { get; set; }
-            var rulez = doc.DocumentNode.SelectSingleNode("//img[contains(@alt, 'rulez')]");
+            var rulez = doc.DocumentNode.SelectSingleNode("//img[@alt='rulez']");
             if (rulez != null)
             {
                 production.Metadata.Rulez = int.Parse(HtmlDecode(rulez.NextSibling.InnerText).Trim());
             }
 
             //public int IsOk { get; set; }
-            var isOk = doc.DocumentNode.SelectSingleNode("//img[contains(@alt, 'is ok')]");
+            var isOk = doc.DocumentNode.SelectSingleNode("//img[@alt='is ok']");
             if (isOk != null)
             {
                 production.Metadata.IsOk = int.Parse(HtmlDecode(isOk.NextSibling.InnerText).Trim());
             }
 
             //public int Sucks { get; set; }
-            var sucks = doc.DocumentNode.SelectSingleNode("//img[contains(@alt, 'sucks')]");
+            var sucks = doc.DocumentNode.SelectSingleNode("//img[@alt='sucks']");
             if (sucks != null)
             {
                 production.Metadata.Sucks = int.Parse(HtmlDecode(sucks.NextSibling.InnerText).Trim());
@@ -386,14 +386,14 @@ namespace PouetRobot
             production.Metadata.Average = totalVotes == 0 ? 0 : ((decimal)(production.Metadata.Rulez - production.Metadata.Sucks)) / totalVotes;
 
             //public int CoupDeCours { get; set; }
-            var coupDeCour = doc.DocumentNode.SelectSingleNode("//img[contains(@alt, 'cdcs')]");
+            var coupDeCour = doc.DocumentNode.SelectSingleNode("//img[@alt='cdcs']");
             if (coupDeCour != null)
             {
                 production.Metadata.CoupDeCours = int.Parse(HtmlDecode(coupDeCour.NextSibling.InnerText).Trim());
             }
 
             //public int AllTimeRank { get; set; }
-            var allTimeRank = doc.DocumentNode.SelectSingleNode("//div[contains(@id, 'alltimerank')]");
+            var allTimeRank = doc.DocumentNode.SelectSingleNode("//div[@id='alltimerank']");
             if (allTimeRank != null)
             {
                 var allTimeRankString = HtmlDecode(allTimeRank.InnerText.Split('#').Last());
@@ -1073,6 +1073,7 @@ namespace PouetRobot
         {
             Metadata = new ProductionMetadata();
             Download = new ProductionDownload();
+            OutputDetails = new List<OutputDetail>();
         }
 
         public int PouetId { get; set; }

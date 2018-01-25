@@ -44,12 +44,17 @@ namespace PouetRobot.StateViewer
 
             logger.Information("Begin work!");
 
-            var productionsPath = @"D:\Temp\PouetDownload\";
-            var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
             var productionsFileName = $@"Productions.json";
+
+            //var productionsPath = @"D:\Temp\PouetDownload\";
+            //var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
+
+            var productionsPath = @"D:\Temp\PouetDownload_PC\";
+            var webCachePath = @"D:\Temp\PouetDownload_PC\WebCache\";
+
             _robot = new Robot(null, productionsPath, productionsFileName, webCachePath, string.Empty, logger, 100000);
 
-            _robot.LoadProductions(IndexScanMode.DisableScan).GetAwaiter().GetResult();
+            _robot.LoadProductions(IndexScanMode.DisableScan);
 
             _allProductions = _robot.Productions.Select(x => x.Value).ToList();
 
@@ -146,7 +151,7 @@ namespace PouetRobot.StateViewer
                             prodNode.ForeColor = Color.OrangeRed;
                         }
 
-                        if (production.OutputDetails.Any(x => x.OutputStatus != OutputStatus.Ok))
+                        if (production.OutputDetails == null || production.OutputDetails.Any(x => x.OutputStatus != OutputStatus.Ok))
                         {
                             groupNode.BackColor = Color.Yellow;
                             prodNode.BackColor = Color.Yellow;
@@ -269,14 +274,18 @@ namespace PouetRobot.StateViewer
 
                 var outputDetails = string.Empty;
                 var outputDetailsColor = _defaultBackColor;
-                foreach (var outputDetail in production.OutputDetails)
+                if (production.OutputDetails != null)
                 {
-                    outputDetails = outputDetails + outputDetail + Environment.NewLine;
-                    if (outputDetail.OutputStatus == OutputStatus.Error)
+                    foreach (var outputDetail in production.OutputDetails)
                     {
-                        outputDetailsColor = Color.Yellow;
+                        outputDetails = outputDetails + outputDetail + Environment.NewLine;
+                        if (outputDetail.OutputStatus == OutputStatus.Error)
+                        {
+                            outputDetailsColor = Color.Yellow;
+                        }
                     }
                 }
+
                 textBoxOutputDetails.Text = outputDetails;
                 textBoxOutputDetails.BackColor = outputDetailsColor;
 
