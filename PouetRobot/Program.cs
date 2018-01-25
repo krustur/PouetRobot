@@ -26,12 +26,15 @@ namespace PouetRobot
         //public static Task Main(string[] args)
         static void Main(string[] args)
         {
-            var productionsPath = @"D:\Temp\PouetDownload\";
-            var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
             var zip7Path = @"C:\Program files\7-Zip\7z.exe";
             var productionsFileName = $@"Productions.json";
-            //var startPageUrl = "http://www.pouet.net/prodlist.php?platform[0]=Amiga+AGA&platform[1]=Amiga+OCS/ECS&page=685";
+
+            var productionsPath = @"D:\Temp\PouetDownload\";
+            var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
             var startPageUrl = "http://www.pouet.net/prodlist.php?platform[]=Amiga+AGA&platform[]=Amiga+OCS/ECS&platform[]=Amiga+PPC/RTG";
+            //var productionsPath = @"D:\Temp\PouetDownload_PC\";
+            //var webCachePath = @"D:\Temp\PouetDownload_PC\WebCache\";
+            //var startPageUrl = "http://www.pouet.net/prodlist.php?platform[]=Windows&page=1";
 
             _logger = new LoggerConfiguration()
                 .WriteTo.ColoredConsole()
@@ -41,19 +44,10 @@ namespace PouetRobot
             _logger.Information("Begin work!");
 
             var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath, zip7Path, _logger, 256);
-            robot.LoadProductions(IndexScanMode.NoRescan)
-                .GetAwaiter().GetResult()
-                ;
-            robot.DownloadMetadata(MetadataScanMode.NoRescan)
-                .GetAwaiter().GetResult()
-                ;
-            robot.DownloadProductions(DownloadProductionsMode.NoRescan)
-                .GetAwaiter().GetResult()
-                ;
-
-            robot.WriteOutput()
-                //.GetAwaiter().GetResult()
-                ;
+            robot.LoadProductions(IndexScanMode.Rescan);
+            robot.DownloadMetadata(MetadataScanMode.Rescan);
+            robot.DownloadProductions(DownloadProductionsMode.Rescan);
+            robot.WriteOutput();
 
 
             _logger.Information("Work is done! Press enter!");
@@ -100,7 +94,7 @@ namespace PouetRobot
         public IDictionary<int, Production> Productions { get; set; }
 
 
-        public async Task LoadProductions(IndexScanMode indexScanMode)
+        public void LoadProductions(IndexScanMode indexScanMode)
         {
             _logger.Information("Fetching production index!");
 
@@ -108,15 +102,21 @@ namespace PouetRobot
             {
                 case IndexScanMode.Rescan:
                     Productions = LoadProductions();
-                    
-                    await RescanIndex(Productions);
+                    if (Productions == null)
+                    {
+                        Productions = DownloadIndex();
+                    }
+                    else
+                    {
+                        RescanIndex(Productions);
+                    }
                     SaveProductions();
                     break;
                 case IndexScanMode.NoRescan:
                     Productions = LoadProductions();
                     if (Productions == null)
                     {
-                        Productions = await DownloadIndex();
+                        Productions = DownloadIndex();
                     }
                     SaveProductions();
                     break;
@@ -126,9 +126,9 @@ namespace PouetRobot
             }           
         }
 
-        private async Task RescanIndex(IDictionary<int, Production> productions)
+        private void RescanIndex(IDictionary<int, Production> productions)
         {
-            var newProductions = await DownloadIndex();
+            var newProductions = DownloadIndex();
 
             // TODO: Warn when productions exists in productions, but not in newProductions
 
@@ -149,7 +149,7 @@ namespace PouetRobot
             }
         }
 
-        private async Task<Dictionary<int, Production>> DownloadIndex()
+        private Dictionary<int, Production> DownloadIndex()
         {
             var nextUrl = _startPageUrl;
             var productions = new Dictionary<int, Production>();
@@ -157,15 +157,15 @@ namespace PouetRobot
                    //&& nextUrl.EndsWith("6") == false
                 )
             {
-                nextUrl = await DownloadIndexPage(productions, nextUrl);
+                nextUrl = DownloadIndexPage(productions, nextUrl);
             }
 
             return productions;
         }
 
-        private async Task<string> DownloadIndexPage(Dictionary<int, Production> productions, string pageUrl)
+        private string DownloadIndexPage(Dictionary<int, Production> productions, string pageUrl)
         {
-            var doc = await GetHtmlDocument(pageUrl);
+            var doc = GetHtmlDocument(pageUrl);
 
             var nextPageUrl = doc.DocumentNode
                     .SelectNodes("//div[contains(@class, 'nextpage')]/a")
@@ -247,7 +247,7 @@ namespace PouetRobot
             return Path.Combine(_productionsPath, _productionsFileName);
         }
 
-        public async Task DownloadMetadata(MetadataScanMode rescan)
+        public void DownloadMetadata(MetadataScanMode rescan)
         {
             _logger.Information("Downloading meta data!");
 
@@ -266,7 +266,7 @@ namespace PouetRobot
                 }
                 else if (DoICare(production))
                 {
-                    await DownloadMetadataPage(productionPair.Key, production);
+                    DownloadMetadataPage(productionPair.Key, production);
                     _logger.Information(
                         "[{progress}/{maxProgress}] Download metadata {DownloadMetadataStatus} [{Title} ({DownloadUrl})]",
                         progress, maxProgress, production.Title, production.Metadata.Status, production.Metadata.DownloadUrl);
@@ -282,9 +282,9 @@ namespace PouetRobot
 
         }
 
-        private async Task DownloadMetadataPage(int pouetId, Production production)
+        private void DownloadMetadataPage(int pouetId, Production production)
         {
-            var doc = await GetHtmlDocument(pouetId, production.PouetUrl);
+            var doc = GetHtmlDocument(pouetId, production.PouetUrl);
 
             //public string DownloadUrl { get; set; }
             var mainDownloadUrl = HtmlDecode(doc.DocumentNode
@@ -433,7 +433,7 @@ namespace PouetRobot
             return true;
         }
 
-        public async Task DownloadProductions(DownloadProductionsMode downloadProductionsMode)
+        public void DownloadProductions(DownloadProductionsMode downloadProductionsMode)
         {
             _logger.Information("Downloading productions!");
 
@@ -461,7 +461,7 @@ namespace PouetRobot
                      || (downloadProductionsMode == DownloadProductionsMode.RescanRetryError ))
                     && DoICare(production))
                 {
-                    await DownloadProduction(productionPair.Key, production);
+                    DownloadProduction(productionPair.Key, production);
                     _logger.Information("[{progress}/{maxProgress}] Downloaded production [{Production} ({DownloadProductionStatus})]",
                         progress, maxProgress, production, production.Download.Status); 
                     if (saveCounter++ >= _saveProductionsHowOften)
@@ -478,17 +478,17 @@ namespace PouetRobot
 
         }
 
-        private async Task DownloadProduction(int productionId, Production production, string url = null)
+        private void DownloadProduction(int productionId, Production production, string url = null)
         {
             try
             {
                 url = url ?? production.Metadata.DownloadUrl;
-                var response = await GetUrl(productionId, url);
+                var response = GetUrl(productionId, url);
 
                 switch (response.HttpResponseMessage.StatusCode)
                 {
                     case HttpStatusCode.Found:
-                        await DownloadProduction(productionId, production, response.HttpResponseMessage.Headers.Location.AbsoluteUri);
+                        DownloadProduction(productionId, production, response.HttpResponseMessage.Headers.Location.AbsoluteUri);
                         return;
                     case HttpStatusCode.OK:
                         var fileTypeByContent = GetFileTypeByContent(response.Content);
@@ -497,7 +497,7 @@ namespace PouetRobot
                         var fileType = fileTypeByContent != FileType.Unknown ? fileTypeByContent : fileTypeByName != FileType.Unknown ? fileTypeByName : fileTypeByContentLength;
                         var fileIdentifiedByType = fileTypeByContent != FileType.Unknown ? FileIdentifiedByType.Content :
                             fileTypeByName != FileType.Unknown ? FileIdentifiedByType.FileName : FileIdentifiedByType.ContentLength;
-                        await HandleProductionContent(productionId, production, fileType, fileIdentifiedByType, response.FileName, response.CacheFileName, response.Content, url);
+                        HandleProductionContent(productionId, production, fileType, fileIdentifiedByType, response.FileName, response.CacheFileName, response.Content, url);
                         return;
                     default:
                         return;
@@ -510,7 +510,7 @@ namespace PouetRobot
             }
         }
 
-        private async Task HandleProductionContent(int productionId, Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName, byte[] responseContent, string url)
+        private void HandleProductionContent(int productionId, Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName, byte[] responseContent, string url)
         {
 
             switch (fileType)
@@ -539,7 +539,7 @@ namespace PouetRobot
                     production.Download.Status = DownloadStatus.Ok;
                     return;
                 case FileType.Html:
-                    var handleHtmlSuccess = await HandleHtml(productionId, production, fileType, fileIdentifiedByType, fileName, cacheFileName, responseContent, url);
+                    var handleHtmlSuccess = HandleHtml(productionId, production, fileType, fileIdentifiedByType, fileName, cacheFileName, responseContent, url);
                     if (handleHtmlSuccess == false)
                     {
                         production.Download.Status = DownloadStatus.UnknownHtml;
@@ -556,7 +556,7 @@ namespace PouetRobot
             }
         }
 
-        private async Task<bool> HandleHtml(int productionId, Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName, byte[] responseContent, string url)
+        private bool HandleHtml(int productionId, Production production, FileType fileType, FileIdentifiedByType fileIdentifiedByType, string fileName, string cacheFileName, byte[] responseContent, string url)
         {
             var doc = new HtmlDocument();
             doc.LoadHtml(ByteArrayToString(responseContent));
@@ -566,7 +566,7 @@ namespace PouetRobot
                 var probeUrl = htmlProber.GetProbeUrl(url, doc);
                 if (probeUrl != null)
                 {
-                    await DownloadProduction(productionId, production, probeUrl);
+                    DownloadProduction(productionId, production, probeUrl);
                     return true;
                 }
             }
@@ -705,25 +705,25 @@ namespace PouetRobot
             return newPath.ToString();
         }
 
-        private async Task<HtmlDocument> GetHtmlDocument(string pageUrl)
+        private HtmlDocument GetHtmlDocument(string pageUrl)
         {
-            var response = await GetUrl(-1, pageUrl);
+            var response = GetUrl(-1, pageUrl);
             var doc = new HtmlDocument();
             doc.LoadHtml(ByteArrayToString(response.Content));
 
             return doc;
         }
 
-        private async Task<HtmlDocument> GetHtmlDocument(int pouetId, string pageUrl)
+        private HtmlDocument GetHtmlDocument(int pouetId, string pageUrl)
         {
-            var response = await GetUrl(pouetId, pageUrl);
+            var response = GetUrl(pouetId, pageUrl);
             var doc = new HtmlDocument();
             doc.LoadHtml(ByteArrayToString(response.Content));
 
             return doc;
         }
 
-        private async Task<(HttpResponseMessage HttpResponseMessage, string FileName, string CacheFileName, byte[] Content)> GetUrl(int prefixId, string pageUrl)
+        private (HttpResponseMessage HttpResponseMessage, string FileName, string CacheFileName, byte[] Content) GetUrl(int prefixId, string pageUrl)
         {
             var hash = Sha256Hash($"{prefixId}_{pageUrl}");
             var cacheFileName = prefixId == -1 ? $"{hash}.dat" : $"{prefixId}_{hash}.dat";
@@ -754,8 +754,8 @@ namespace PouetRobot
                     SecurityProtocolType.Tls11 |
                     SecurityProtocolType.Tls; // comparable to modern browsers
                 
-                var responseMessage = await _httpClient.GetAsync(pageUrl);
-                var content = await responseMessage.Content.ReadAsByteArrayAsync();
+                var responseMessage = _httpClient.GetAsync(pageUrl).GetAwaiter().GetResult();
+                var content = responseMessage.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
                 
                 if (responseMessage.StatusCode == HttpStatusCode.OK)
                 {
