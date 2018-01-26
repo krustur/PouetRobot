@@ -46,11 +46,11 @@ namespace PouetRobot.StateViewer
 
             var productionsFileName = $@"Productions.json";
 
-            //var productionsPath = @"D:\Temp\PouetDownload\";
-            //var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
+            var productionsPath = @"D:\Temp\PouetDownload\";
+            var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
 
-            var productionsPath = @"D:\Temp\PouetDownload_PC\";
-            var webCachePath = @"D:\Temp\PouetDownload_PC\WebCache\";
+            //var productionsPath = @"D:\Temp\PouetDownload_PC\";
+            //var webCachePath = @"D:\Temp\PouetDownload_PC\WebCache\";
 
             _robot = new Robot(null, productionsPath, productionsFileName, webCachePath, string.Empty, logger, 100000);
 

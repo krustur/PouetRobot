@@ -29,12 +29,12 @@ namespace PouetRobot
             var zip7Path = @"C:\Program files\7-Zip\7z.exe";
             var productionsFileName = $@"Productions.json";
 
-            //var productionsPath = @"D:\Temp\PouetDownload\";
-            //var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
-            //var startPageUrl = "http://www.pouet.net/prodlist.php?platform[]=Amiga+AGA&platform[]=Amiga+OCS/ECS&platform[]=Amiga+PPC/RTG";
-            var productionsPath = @"D:\Temp\PouetDownload_PC\";
-            var webCachePath = @"D:\Temp\PouetDownload_PC\WebCache\";
-            var startPageUrl = "http://www.pouet.net/prodlist.php?platform[]=Windows&page=1";
+            var productionsPath = @"D:\Temp\PouetDownload\";
+            var webCachePath = @"D:\Temp\PouetDownload\WebCache\";
+            var startPageUrl = "http://www.pouet.net/prodlist.php?platform[]=Amiga+AGA&platform[]=Amiga+OCS/ECS&platform[]=Amiga+PPC/RTG";
+            //var productionsPath = @"D:\Temp\PouetDownload_PC\";
+            //var webCachePath = @"D:\Temp\PouetDownload_PC\WebCache\";
+            //var startPageUrl = "http://www.pouet.net/prodlist.php?platform[]=Windows&page=1";
 
             _logger = new LoggerConfiguration()
                 .WriteTo.ColoredConsole()
@@ -45,8 +45,8 @@ namespace PouetRobot
 
             var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath, zip7Path, _logger, 256);
             robot.LoadProductions(IndexScanMode.NoRescan);
-            robot.DownloadMetadata(MetadataScanMode.Rescan);
-            robot.DownloadProductions(DownloadProductionsMode.Rescan);
+            robot.DownloadMetadata(MetadataScanMode.NoRescan);
+            robot.DownloadProductions(DownloadProductionsMode.NoRescan);
             robot.WriteOutput();
 
 
@@ -927,6 +927,8 @@ namespace PouetRobot
         {
             var cacheFilePath = GetProductionCacheFullPath(production.Download.CacheFileName);
 
+            bool shouldExtract = false;
+            bool shouldCopyCacheFile = false;
             switch (production.Download.FileType)
             {
 
@@ -939,43 +941,10 @@ namespace PouetRobot
                 case FileType.Rar:
                 case FileType.Lzx:
                 case FileType.Gz:
-                    var extractDestPath = Path.Combine(_productionsPath, outputFolder);
-                    //var zip7Command = $"/C \"{_zip7Path}\" x \"{cacheFilePath}\" -o\"{extractDestPath}\"";
-                    var zip7Command2 = $"\"{_zip7Path}\" x \"{cacheFilePath}\" -o\"{extractDestPath}\"";
-                    _logger.Information($"Extracting to [{extractDestPath}]");
-                    //_logger.Information(zip7Command);
-                    //System.Diagnostics.Process.Start("cmd.exe", zip7Command);
-                    try
-                    {
-                        Process cmd = new Process();
-                        cmd.StartInfo.FileName = "cmd.exe";
-                        cmd.StartInfo.RedirectStandardInput = true;
-                        cmd.StartInfo.RedirectStandardOutput = true;
-                        cmd.StartInfo.CreateNoWindow = true;
-                        cmd.StartInfo.UseShellExecute = false;
-                        cmd.Start();
+                    shouldExtract = true;
+                    shouldCopyCacheFile = false;
 
-                        cmd.StandardInput.WriteLine($"{zip7Command2}");
-                        cmd.StandardInput.Flush();
-                        cmd.StandardInput.Close();
-                        cmd.WaitForExit();
-                        var cmdOutput = cmd.StandardOutput.ReadToEnd();
-                        if (cmdOutput.Contains("Everything is Ok"))
-                        {
-                            _logger.Information(cmdOutput);
-                            production.OutputDetails.Add(new OutputDetail(OutputStatus.Ok, extractDestPath));
-
-                        }
-                        else
-                        {
-                            _logger.Error(cmdOutput);
-                            production.OutputDetails.Add(new OutputDetail(OutputStatus.Error, extractDestPath));
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        production.OutputDetails.Add(new OutputDetail(OutputStatus.Error, extractDestPath));
-                    }
+                   
 
                     break;
 
@@ -988,29 +957,9 @@ namespace PouetRobot
                 case FileType.Mpeg:
                 case FileType.Txt:
                 case FileType.Png:
-                case FileType.Gif:                 
-                    var destPath = Path.Combine(_productionsPath, outputFolder, production.Download.FileName);
-                    var destFileNameOnly = Path.GetFileNameWithoutExtension(destPath);
-                    var destExtension = Path.GetExtension(destPath);
-                    var destDirectoryOnly = Path.GetDirectoryName(destPath);
-                    try
-                    {
-                        var dupeCount = 1;
-                        while (File.Exists(destPath))
-                        {
-                            string tempFileName = $"{destFileNameOnly}({dupeCount++})";
-                            destPath = Path.Combine(destDirectoryOnly, tempFileName + destExtension);
-                            _logger.Warning($"File already exists! Duplicate files? [{destPath}]");
-                        }
-
-                        _logger.Information($"Copying file [{destPath}]");
-                        File.Copy(cacheFilePath, destPath);
-                        production.OutputDetails.Add(new OutputDetail(OutputStatus.Ok, destPath));
-                    }
-                    catch (Exception)
-                    {
-                        production.OutputDetails.Add(new OutputDetail(OutputStatus.Error, destPath));                        
-                    }
+                case FileType.Gif:
+                    shouldExtract = false;
+                    shouldCopyCacheFile = true;
 
                     break;
 
@@ -1018,11 +967,96 @@ namespace PouetRobot
                     break;
             }
 
+
+            if (shouldExtract)
+            {
+                var extractDestPath = GetExtractDestPath(outputFolder);
+                var extractArchiveSuccess = ExtractArchive(extractDestPath, production, cacheFilePath);
+                if (extractArchiveSuccess == false)
+                {
+                    shouldCopyCacheFile = true;
+                }
+            }
+
+            if (shouldCopyCacheFile)
+            {
+                CopyCacheFile(outputFolder, production, cacheFilePath);
+            }
+
             _writeOutputCounter++;
             if (_writeOutputCounter > _saveProductionsHowOften)
             {
                 _writeOutputCounter = 0;
                 SaveProductions();
+            }
+        }
+
+        private bool ExtractArchive(string extractDestPath, Production production, string cacheFilePath)
+        {
+            var zip7Command2 = $"\"{_zip7Path}\" x \"{cacheFilePath}\" -o\"{extractDestPath}\"";
+            _logger.Information($"Extracting to [{extractDestPath}]");
+            try
+            {
+                Process cmd = new Process();
+                cmd.StartInfo.FileName = "cmd.exe";
+                cmd.StartInfo.RedirectStandardInput = true;
+                cmd.StartInfo.RedirectStandardOutput = true;
+                cmd.StartInfo.CreateNoWindow = true;
+                cmd.StartInfo.UseShellExecute = false;
+                cmd.Start();
+
+                cmd.StandardInput.WriteLine($"{zip7Command2}");
+                cmd.StandardInput.Flush();
+                cmd.StandardInput.Close();
+                cmd.WaitForExit();
+                var cmdOutput = cmd.StandardOutput.ReadToEnd();
+                if (cmdOutput.Contains("Everything is Ok"))
+                {
+                    _logger.Information(cmdOutput);
+                    production.OutputDetails.Add(new OutputDetail(OutputStatus.Ok, extractDestPath));
+                    return true;
+                }
+
+                _logger.Error(cmdOutput);
+                production.OutputDetails.Add(new OutputDetail(OutputStatus.Error, extractDestPath));
+                return false;
+            }
+            catch (Exception)
+            {
+                production.OutputDetails.Add(new OutputDetail(OutputStatus.Error, extractDestPath));
+                return false;
+            }
+        }
+
+        private string GetExtractDestPath(string outputFolder)
+        {
+            var extractDestPath = Path.Combine(_productionsPath, outputFolder);
+            return extractDestPath;
+        }
+
+        private void CopyCacheFile(string outputFolder, Production production, string cacheFilePath)
+        {
+            var destPath = Path.Combine(_productionsPath, outputFolder, production.Download.FileName);
+            var destFileNameOnly = Path.GetFileNameWithoutExtension(destPath);
+            var destExtension = Path.GetExtension(destPath);
+            var destDirectoryOnly = Path.GetDirectoryName(destPath);
+            try
+            {
+                var dupeCount = 1;
+                while (File.Exists(destPath))
+                {
+                    string tempFileName = $"{destFileNameOnly}({dupeCount++})";
+                    destPath = Path.Combine(destDirectoryOnly, tempFileName + destExtension);
+                    _logger.Warning($"File already exists! Duplicate files? [{destPath}]");
+                }
+
+                _logger.Information($"Copying file [{destPath}]");
+                File.Copy(cacheFilePath, destPath);
+                production.OutputDetails.Add(new OutputDetail(OutputStatus.Ok, destPath));
+            }
+            catch (Exception)
+            {
+                production.OutputDetails.Add(new OutputDetail(OutputStatus.Error, destPath));
             }
         }
 
