@@ -832,27 +832,78 @@ namespace PouetRobot
                     .FilterMetadataStatus(MetadataStatus.Ok)
                 ;
 
-            var groupProductions = productions
-                    .FilterExcludeTypes(new List<string>
+            var generalTypeExcludeFilter = new List<string>
+            {
+                "artpack",
+                "bbstro",
+                "cracktro",
+                "demotool",
+                "diskmag",
+                "game",
+                "invitation",
+                "liveact",
+                "musicdisk",
+                "procedural graphics",
+                "report",
+                "slideshow",
+                "votedisk",
+                "wild",
+            };
+            var agaProductions = productions
+                    .FilterExcludeTypes(generalTypeExcludeFilter)
+                    .FilterExcludeFileTypes(new List<string>
                     {
-                        "artpack",
-                        "bbstro",
-                        "cracktro",
-                        "demotool",
-                        "diskmag",
-                        "game",
-                        "invitation",
-                        "liveact",
-                        "musicdisk",
-                        "procedural graphics",
-                        "report",
-                        "slideshow",
-                        "votedisk",
-                        "wild",
+                        FileType.Adf.ToString(),
+                        FileType.Dms.ToString(),
                     })
-                    //.FilterExcludeFileTypes(new List<string>{FileType.Adf.ToString(), FileType.});
-                    ;
-            folderStructure.Add(new Folder("Groups", GetProductionsFolderStructure(groupProductions, includeTypes: true)));
+                    .FilterPlatform("Amiga AGA");
+            var agaProductionsAdf = productions
+                    .FilterExcludeTypes(generalTypeExcludeFilter)
+                    .FilterFileTypes(new List<string>
+                    {
+                        FileType.Adf.ToString(),
+                        FileType.Dms.ToString(),
+                    })
+                    .FilterPlatform("Amiga AGA");
+            var ocsEcsProductions = productions
+                    .FilterExcludeTypes(generalTypeExcludeFilter)
+                    .FilterExcludeFileTypes(new List<string>
+                    {
+                        FileType.Adf.ToString(),
+                        FileType.Dms.ToString(),
+                    })
+                    .FilterPlatform("Amiga OCS/ECS");
+            var ocsEcsProductionsAdf = productions
+                    .FilterExcludeTypes(generalTypeExcludeFilter)
+                    .FilterFileTypes(new List<string>
+                    {
+                        FileType.Adf.ToString(),
+                        FileType.Dms.ToString(),
+                    })
+                    .FilterPlatform("Amiga OCS/ECS");
+            var ppcRtgProductions = productions
+                    .FilterExcludeTypes(generalTypeExcludeFilter)
+                    .FilterExcludeFileTypes(new List<string>
+                    {
+                        FileType.Adf.ToString(),
+                        FileType.Dms.ToString(),
+                    })
+                    .FilterPlatform("Amiga PPC/RTG");
+            var ppcRtgProductionsAdf = productions
+                    .FilterExcludeTypes(generalTypeExcludeFilter)
+                    .FilterFileTypes(new List<string>
+                    {
+                        FileType.Adf.ToString(),
+                        FileType.Dms.ToString(),
+                    })
+                    .FilterPlatform("Amiga PPC/RTG");
+
+            folderStructure.Add(new Folder("AGA", GetProductionsFolderStructure(agaProductions, includeTypes: true)));
+            folderStructure.Add(new Folder("AGA Floppies", GetProductionsFolderStructure(agaProductionsAdf, includeTypes: true)));
+            folderStructure.Add(new Folder("OCS/ECS", GetProductionsFolderStructure(ocsEcsProductions, includeTypes: true)));
+            folderStructure.Add(new Folder("OCS/ECS Floppies", GetProductionsFolderStructure(ocsEcsProductionsAdf, includeTypes: true)));
+            folderStructure.Add(new Folder("PPC/RTG", GetProductionsFolderStructure(ppcRtgProductions, includeTypes: true)));
+            folderStructure.Add(new Folder("PPC/RTG Floppies", GetProductionsFolderStructure(ppcRtgProductionsAdf, includeTypes: true)));
             folderStructure.Add(new Folder("Artpacks", GetProductionsFolderStructure(productions.FilterType("artpack"), includeTypes: false)));
             folderStructure.Add(new Folder("BBStros", GetProductionsFolderStructure(productions.FilterType("bbstro"), includeTypes: false)));
             folderStructure.Add(new Folder("Cracktros", GetProductionsFolderStructure(productions.FilterType("cracktro"), includeTypes: false)));
@@ -1125,15 +1176,23 @@ namespace PouetRobot
 
         public string GetFolderName(bool includeGroups, bool includeTypes, bool fileSystemSafeNames)
         {
-            var groups = includeGroups ? $@" [{Metadata.Groups.ToSingleString()}]" : string.Empty;
-            var types = includeTypes ? $@"  [{Metadata.Types.ToSingleString()}]" : string.Empty;
-
-            var folderName = $"{Title}{groups}{types} [{Metadata.Platforms.ToSingleString()}]";
+            var groups = includeGroups ? $@"_{Metadata.Groups.ToSingleString()}" : string.Empty;
+            var types = includeTypes ? $@"_{Metadata.Types.ToSingleString()}" : string.Empty;
+            var year = GetYear();
+            var folderName = $"{Title}{groups}{types}{year}";
             if (fileSystemSafeNames)
             {
                 folderName = MakeFileSystemSafeName(folderName);
             }
             return folderName;
+        }
+
+        private string GetYear()
+        {
+            if (string.IsNullOrWhiteSpace(Metadata.ReleaseDate))
+                return string.Empty;
+            var yearDigits = Regex.Replace(Metadata.ReleaseDate, @"[^0-9]", "");
+            return string.IsNullOrWhiteSpace(yearDigits) ? string.Empty : yearDigits;
         }
 
         private string MakeFileSystemSafeName(string fileName)

@@ -14,6 +14,20 @@ namespace PouetRobot
                 : productions;
         }
 
+        public static IList<Production> FilterExcludeFileTypes(this IList<Production> productions, IList<string> filter)
+        {
+            return filter.Count > 0
+                ? productions
+                    .Where(x => filter.Contains(x.Download.FileType.ToString()) == false)
+                    .ToList()
+                : productions;
+        }
+
+
+        public static IList<Production> FilterPlatform(this IList<Production> productions, string filter)
+        {
+            return FilterPlatforms(productions, new List<string> {filter});
+        }
         public static IList<Production> FilterPlatforms(this IList<Production> productions, IList<string> filter)
         {
             return filter.Count > 0
