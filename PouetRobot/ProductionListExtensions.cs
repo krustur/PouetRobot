@@ -4,7 +4,7 @@ using System.Linq;
 namespace PouetRobot
 {
     public static class ProductionListExtensions
-    {
+    {        
         public static IList<Production> FilterFileTypes(this IList<Production> productions, IList<string> filter)
         {
             return filter.Count > 0
@@ -28,6 +28,7 @@ namespace PouetRobot
         {
             return FilterPlatforms(productions, new List<string> {filter});
         }
+
         public static IList<Production> FilterPlatforms(this IList<Production> productions, IList<string> filter)
         {
             return filter.Count > 0
