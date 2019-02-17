@@ -43,11 +43,11 @@ namespace PouetRobot
 
             _logger.Information("Begin work!");
 
-            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath, zip7Path, _logger, 256);
+            var robot = new Robot(startPageUrl, productionsPath, productionsFileName, webCachePath, zip7Path, _logger, 2048);
             robot.LoadProductions(IndexScanMode.NoRescan);
             robot.DownloadMetadata(MetadataScanMode.NoRescan);
             robot.DownloadProductions(DownloadProductionsMode.NoRescan);
-            robot.WriteOutput("Output", true);
+            robot.WriteOutput("Output", appendDateToFolderName: true);
 
 
             _logger.Information("Work is done! Press enter!");
@@ -480,6 +480,7 @@ namespace PouetRobot
 
         private void DownloadProduction(int productionId, Production production, string url = null)
         {
+            //if (productionId != 25778) return;
             try
             {
                 url = url ?? production.Metadata.DownloadUrl;
@@ -805,24 +806,24 @@ namespace PouetRobot
         private string ByteArrayToString(byte[] byteArray)
         {
             return Encoding.UTF8.GetString(byteArray);
-        }
+        }        
 
         public IList<Folder> GetMasterFolderStructure()
         {
             var rootFolderStructure = new List<Folder>();
-           
+
             var productions = Productions.Select(x => x.Value)
                     .ToList()
                     .FilterDownloadStatus(DownloadStatus.Ok)
                     .FilterMetadataStatus(MetadataStatus.Ok)
                 ;
-            
+
             var excludeFromGroupFoldersTypes = new List<string>
             {
                 //"artpack",               
-                "demotool",               
-                "game",               
-                "liveact",               
+                "demotool",
+                "game",
+                "liveact",
                 //"procedural graphics",
                 "report",
                 //"slideshow",               
@@ -837,7 +838,17 @@ namespace PouetRobot
                         FileType.Adf.ToString(),
                         FileType.Dms.ToString(),
                     })
-                    ;
+                ;
+
+            var allNonDiscImageProductionsWithCoupDeCours = productions
+                    .FilterExcludeTypes(excludeFromGroupFoldersTypes)
+                    .FilterExcludeFileTypes(new List<string>
+                    {
+                        FileType.Adf.ToString(),
+                        FileType.Dms.ToString(),
+                    })
+                    .FilterExcludeNonCoupDeCours()
+                ;
 
             var allDiscImageProductions = productions
                     .FilterExcludeTypes(excludeFromGroupFoldersTypes)
@@ -846,44 +857,49 @@ namespace PouetRobot
                         FileType.Adf.ToString(),
                         FileType.Dms.ToString(),
                     })
-                    ;           
+                ;
 
             var miscFolder = rootFolderStructure.AddFolder("_Misc");
-            miscFolder.AddFolder("DiscImages", GetGroupsFolderStructure(allDiscImageProductions, includeTypes: true));
+            miscFolder.AddFolder("DiscImages", GetGroupsFolderStructure(allDiscImageProductions, includeTypes: true, includePlatforms: true));
 
-            miscFolder.AddFolder("Demotools").AddFolders(GetGroupsFolderStructure(productions.FilterType("demotool"), includeTypes: false));
-            miscFolder.AddFolder("Games").AddFolders(GetGroupsFolderStructure(productions.FilterType("game"), includeTypes: false));
-            miscFolder.AddFolder("Liveacts").AddFolders(GetGroupsFolderStructure(productions.FilterType("liveact"), includeTypes: false));
-            miscFolder.AddFolder("Reports").AddFolders(GetGroupsFolderStructure(productions.FilterType("report"), includeTypes: false));
-            miscFolder.AddFolder("Wild").AddFolders(GetGroupsFolderStructure(productions.FilterType("wild"), includeTypes: false));
+            miscFolder.AddFolder("Demotools").AddFolders(GetGroupsFolderStructure(productions.FilterType("demotool"), includeTypes: false, includePlatforms: true));
+            miscFolder.AddFolder("Games").AddFolders(GetGroupsFolderStructure(productions.FilterType("game"), includeTypes: false, includePlatforms: true));
+            miscFolder.AddFolder("Liveacts").AddFolders(GetGroupsFolderStructure(productions.FilterType("liveact"), includeTypes: false, includePlatforms: true));
+            miscFolder.AddFolder("Reports").AddFolders(GetGroupsFolderStructure(productions.FilterType("report"), includeTypes: false, includePlatforms: true));
+            miscFolder.AddFolder("Wild").AddFolders(GetGroupsFolderStructure(productions.FilterType("wild"), includeTypes: false, includePlatforms: true));
 
-            rootFolderStructure.AddFolders(GetGroupsFolderStructure(allNonDiscImageProductions, includeTypes: true));                  
+            rootFolderStructure.AddFolders(GetGroupsFolderStructure(allNonDiscImageProductions, includeTypes: true, includePlatforms: true));
+
+            //var coupDeCoursFolder = rootFolderStructure.AddFolder("_CoupDeCours");
+            //coupDeCoursFolder.AddFolders(GetGroupsFolderStructure(allNonDiscImageProductionsWithCoupDeCours, includeTypes: true));
 
             return rootFolderStructure;
         }
 
-        private IList<Folder> GetGroupsFolderStructure(IList<Production> productions, bool includeTypes)
+        private IList<Folder> GetGroupsFolderStructure(IList<Production> productions, bool includeTypes, bool includePlatforms)
         {
             var folderStructure = new List<Folder>();
 
             var groups = productions.GetGroups();
             foreach (var group in groups)
             {
-                var groupFolder = folderStructure.AddFolder(group);
+                var groupFolderName = group.FixGroupName();
+                var groupFolder = folderStructure.AddFolder(groupFolderName);
                 var groupProductions = productions.Where(x => x.Metadata.Groups.Contains(group)).ToList();
 
-                AddGroupsSubFolder(groupProductions, groupFolder, "artpack", "_Artpacks", includeTypes);
-                AddGroupsSubFolder(groupProductions, groupFolder, "bbstro", "_Bbstros", includeTypes);
-                AddGroupsSubFolder(groupProductions, groupFolder, "cracktro", "_Cracktros", includeTypes);
-                AddGroupsSubFolder(groupProductions, groupFolder, "demopack", "_Demopacks", includeTypes);
-                AddGroupsSubFolder(groupProductions, groupFolder, "dentro", "_Dentros", includeTypes);
-                AddGroupsSubFolder(groupProductions, groupFolder, "diskmag", "_Diskmags", includeTypes);
-                AddGroupsSubFolder(groupProductions, groupFolder, "fastdemo", "_Fast demos", includeTypes);
-                AddGroupsSubFolder(groupProductions, groupFolder, "invitation", "_Invitations", includeTypes);
-                AddGroupsSubFolder(groupProductions, groupFolder, "musicdisk", "_Music disks", includeTypes);
-                AddGroupsSubFolder(groupProductions, groupFolder, "procedural graphics", "_Procedural graphics", includeTypes);
-                AddGroupsSubFolder(groupProductions, groupFolder, "slideshow", "_Slideshows", includeTypes);
-                AddGroupsSubFolder(groupProductions, groupFolder, "votedisk", "_Votedisks", includeTypes);
+                AddGroupsSubFolder(groupProductions, groupFolder, "artpack", null, "_Artpacks", includeTypes, includePlatforms);
+                AddGroupsSubFolder(groupProductions, groupFolder, "bbstro", null, "_Bbstros", includeTypes, includePlatforms);
+                AddGroupsSubFolder(groupProductions, groupFolder, "cracktro", null, "_Cracktros", includeTypes, includePlatforms);
+                AddGroupsSubFolder(groupProductions, groupFolder, "demopack", null, "_Demopacks", includeTypes, includePlatforms);
+                AddGroupsSubFolder(groupProductions, groupFolder, "dentro", null, "_Dentros", includeTypes, includePlatforms);
+                AddGroupsSubFolder(groupProductions, groupFolder, "diskmag", null, "_Diskmags", includeTypes, includePlatforms);
+                AddGroupsSubFolder(groupProductions, groupFolder, "fastdemo", null, "_Fast demos", includeTypes, includePlatforms);
+                AddGroupsSubFolder(groupProductions, groupFolder, "invitation", null, "_Invitations", includeTypes, includePlatforms);
+                AddGroupsSubFolder(groupProductions, groupFolder, "musicdisk", null, "_Music disks", includeTypes, includePlatforms);
+                AddGroupsSubFolder(groupProductions, groupFolder, "procedural graphics", null, "_Procedural graphics", includeTypes, includePlatforms);
+                AddGroupsSubFolder(groupProductions, groupFolder, "slideshow", null, "_Slideshows", includeTypes, includePlatforms);
+                AddGroupsSubFolder(groupProductions, groupFolder, "votedisk", null, "_Votedisks", includeTypes, includePlatforms);
+
 
                 var theRest = groupProductions.FilterExcludeTypes(new List<string>
                 {
@@ -900,24 +916,32 @@ namespace PouetRobot
                     "slideshow",
                     "votedisk"
                 });
+
+                AddGroupsSubFolder(theRest, groupFolder, null, "Amiga OCS/ECS", "_OCSECS", includeTypes, includePlatforms: false);
+                AddGroupsSubFolder(theRest, groupFolder, null, "Amiga PPC/RTG", "_PPCRTG", includeTypes, includePlatforms: false);
+
+                theRest = theRest.FilterExcludePlatforms(new List<string> {"Amiga OCS/ECS", "Amiga PPC/RTG" });
+                theRest = theRest.FilterExcludePlatforms(new List<string> {"Amiga PPC/RTG" });
+
                 foreach (var groupProduction in theRest)
                 {
-                    groupFolder.AddFolder(groupProduction.GetFolderName(includeGroups: false, includeTypes: includeTypes, fileSystemSafeNames: true), groupProduction);
+                    groupFolder.AddFolder(groupProduction.GetFolderName(includeGroups: false, includeTypes: includeTypes, includePlatforms: false, fileSystemSafeNames: true), groupProduction);
                 }
             }
 
             return folderStructure;
         }
 
-        private void AddGroupsSubFolder(IList<Production> groupProductions, Folder groupFolder, string type, string folderName, bool includeTypes)
+        private void AddGroupsSubFolder(IList<Production> groupProductions, Folder groupFolder, string type, string platform, string folderName, bool includeTypes, bool includePlatforms)
         {
             var subProductions = groupProductions.FilterType(type);
+            subProductions = subProductions.FilterPlatform(platform);
             if (subProductions.Count > 0)
             {
                 var subFolder = groupFolder.AddFolder(folderName);
                 foreach (var subProduction in subProductions)
                 {
-                    subFolder.AddFolder(subProduction.GetFolderName(includeGroups: false, includeTypes: includeTypes, fileSystemSafeNames: true), subProduction);
+                    subFolder.AddFolder(subProduction.GetFolderName(includeGroups: false, includeTypes: includeTypes, includePlatforms: includePlatforms, fileSystemSafeNames: true), subProduction);
                 }
             }
         }
@@ -1130,9 +1154,9 @@ namespace PouetRobot
         }
     }
 
-
+   
     public class Production
-    {
+    {       
         public Production()
         {
             Metadata = new ProductionMetadata();
@@ -1150,21 +1174,41 @@ namespace PouetRobot
 
         public override string ToString()
         {
-            return GetFolderName(includeGroups: true, includeTypes: true, fileSystemSafeNames: false);
+            return GetFolderName(includeGroups: true, includeTypes: true, includePlatforms: true, fileSystemSafeNames: false);
         }
 
-        public string GetFolderName(bool includeGroups, bool includeTypes, bool fileSystemSafeNames)
+        public string GetFolderName(bool includeGroups, bool includeTypes, bool includePlatforms, bool fileSystemSafeNames)
         {
-            var groups = includeGroups ? $@"_{Metadata.Groups.ToSingleString()}" : string.Empty;
-            var types = includeTypes ? $@"_{Metadata.Types.ToSingleString()}" : string.Empty;
-            var platform = GetPlatform();
+            var title = GetTitle();
+            var groups = includeGroups ? GetGroupName() : string.Empty;
+            var types = includeTypes ? GetTypes() : string.Empty;
+            var platform = includePlatforms ? GetPlatform() : string.Empty;
             var year = GetYear();
-            var folderName = $"{Title}{groups}{types}{platform}{year}";
+            var folderName = $"{year}{title}{groups}{types}{platform}";
             if (fileSystemSafeNames)
             {
                 folderName = MakeFileSystemSafeName(folderName);
             }
+
+            folderName = folderName.RemoveFolderNameDupes();
             return folderName;
+        }
+
+        private object GetTitle()
+        {
+            return Title.ToCamelCase();
+        }
+
+        private string GetTypes()
+        {
+            return $@"{Metadata.Types.ToSingleString()}";
+        }
+
+        private string GetGroupName()
+        {
+            var group = Metadata.Groups.ToSingleString();
+            group = group.FixGroupName();
+            return $@"{group}";
         }
 
         private string GetYear()
@@ -1172,7 +1216,7 @@ namespace PouetRobot
             if (string.IsNullOrWhiteSpace(Metadata.ReleaseDate))
                 return string.Empty;
             var yearDigits = Regex.Replace(Metadata.ReleaseDate, @"[^0-9]", "");
-            return string.IsNullOrWhiteSpace(yearDigits) ? string.Empty : $"_{yearDigits}";
+            return string.IsNullOrWhiteSpace(yearDigits) ? string.Empty : $"{yearDigits}";
         }
 
         private string GetPlatform()
@@ -1183,8 +1227,9 @@ namespace PouetRobot
                 var platformString = platform.Replace("Amiga", "").Replace(" ", "");
                 platforms.Add(platformString);
             }
-            return $@"_{platforms.ToSingleString()}";
+            return $@"{platforms.ToSingleString()}";
         }
+
         private string MakeFileSystemSafeName(string fileName)
         {
             foreach (var invalidFileNameChar in Path.GetInvalidFileNameChars())
